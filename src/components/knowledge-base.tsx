@@ -1,62 +1,73 @@
 'use client';
 
 import { useState } from 'react';
+import { showToast } from '@/components/toast';
 
-interface Doc {
+interface DocItem {
   id: string;
-  title: string;
-  type: 'doc' | 'folder';
-  children?: Doc[];
+  type: 'folder' | 'doc';
+  name: string;
   tags?: string[];
-  updatedAt?: string;
+  wordCount?: number;
+  lastModified?: string;
+  author?: string;
+  children?: DocItem[];
 }
 
-const mockTree: Doc[] = [
+const mockTree: DocItem[] = [
   {
-    id: '1', title: '内容创作指南', type: 'folder', children: [
-      { id: '1-1', title: '选题方法论', type: 'doc', tags: ['方法论', '选题'], updatedAt: '2 小时前' },
-      { id: '1-2', title: '写作模板库', type: 'doc', tags: ['模板'], updatedAt: '1 天前' },
-      { id: '1-3', title: '排版规范', type: 'doc', tags: ['设计', '规范'], updatedAt: '3 天前' },
-    ],
+    id: '1', type: 'folder', name: '内容策略', children: [
+      { id: '1-1', type: 'doc', name: '2025 年度内容规划', tags: ['策略', '规划'], wordCount: 4200, lastModified: '2 小时前', author: '张明' },
+      { id: '1-2', type: 'doc', name: '受众画像分析', tags: ['用户研究', '数据'], wordCount: 3100, lastModified: '昨天', author: '李华' },
+      { id: '1-3', type: 'doc', name: '竞品内容分析', tags: ['竞品', '策略'], wordCount: 2800, lastModified: '3 天前', author: '王芳' },
+    ]
   },
   {
-    id: '2', title: '行业研究', type: 'folder', children: [
-      { id: '2-1', title: '2025 内容趋势', type: 'doc', tags: ['行业', '趋势'], updatedAt: '5 小时前' },
-      { id: '2-2', title: '竞品分析', type: 'doc', tags: ['竞品'], updatedAt: '2 天前' },
-      { id: '2-3', title: '用户画像', type: 'doc', tags: ['用户'], updatedAt: '1 周前' },
-    ],
+    id: '2', type: 'folder', name: '写作规范', children: [
+      { id: '2-1', type: 'doc', name: '品牌语调指南', tags: ['品牌', '规范'], wordCount: 1500, lastModified: '1 周前', author: '张明' },
+      { id: '2-2', type: 'doc', name: 'SEO 写作手册', tags: ['SEO', '教程'], wordCount: 3800, lastModified: '2 周前', author: '赵强' },
+    ]
   },
   {
-    id: '3', title: '素材库', type: 'folder', children: [
-      { id: '3-1', title: '常用配图', type: 'doc', tags: ['图片'], updatedAt: '1 天前' },
-      { id: '3-2', title: '数据报告', type: 'doc', tags: ['数据'], updatedAt: '4 天前' },
-    ],
+    id: '3', type: 'folder', name: '素材库', children: [
+      { id: '3-1', type: 'folder', name: '图片素材', children: [] },
+      { id: '3-2', type: 'folder', name: '数据报告', children: [
+        { id: '3-2-1', type: 'doc', name: 'Q2 内容表现报告', tags: ['数据', '报告'], wordCount: 5600, lastModified: '5 天前', author: '陈静' },
+        { id: '3-2-2', type: 'doc', name: '用户增长分析', tags: ['数据', '增长'], wordCount: 2200, lastModified: '1 周前', author: '陈静' },
+      ]},
+      { id: '3-3', type: 'doc', name: '常用模板合集', tags: ['模板', '效率'], wordCount: 800, lastModified: '1 个月前', author: '李华' },
+    ]
   },
-  { id: '4', title: '会议纪要 - 7月', type: 'doc', tags: ['会议'], updatedAt: '3 小时前' },
-  { id: '5', title: '发布排期表', type: 'doc', tags: ['排期', '运营'], updatedAt: '6 小时前' },
+  {
+    id: '4', type: 'folder', name: '培训资料', children: [
+      { id: '4-1', type: 'doc', name: '新人入职指南', tags: ['培训', '入门'], wordCount: 2400, lastModified: '2 周前', author: '张明' },
+      { id: '4-2', type: 'doc', name: '内容审核流程', tags: ['流程', '规范'], wordCount: 1200, lastModified: '3 周前', author: '王芳' },
+    ]
+  },
 ];
 
-const tagColors: Record<string, { text: string; bg: string }> = {
-  '方法论': { text: '#6B8FA3', bg: '#E8F0F5' },
-  '选题': { text: '#D4A574', bg: '#F5EBD9' },
-  '模板': { text: '#4A7C59', bg: '#E8F2EB' },
-  '设计': { text: '#A64D4D', bg: '#F5E8E8' },
-  '规范': { text: '#6B6B6B', bg: '#F0EDE8' },
-  '行业': { text: '#6B8FA3', bg: '#E8F0F5' },
-  '趋势': { text: '#C17B3E', bg: '#FFF3E0' },
-  '竞品': { text: '#A64D4D', bg: '#F5E8E8' },
-  '用户': { text: '#4A7C59', bg: '#E8F2EB' },
-  '图片': { text: '#D4A574', bg: '#F5EBD9' },
-  '数据': { text: '#6B8FA3', bg: '#E8F0F5' },
-  '会议': { text: '#6B6B6B', bg: '#F0EDE8' },
-  '排期': { text: '#C17B3E', bg: '#FFF3E0' },
-  '运营': { text: '#4A7C59', bg: '#E8F2EB' },
-};
+const recentDocs = [
+  { name: '2025 年度内容规划', time: '2 小时前', author: '张明' },
+  { name: '品牌语调指南', time: '1 周前', author: '张明' },
+  { name: 'Q2 内容表现报告', time: '5 天前', author: '陈静' },
+];
 
 export function KnowledgeBase() {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['1', '2']));
-  const [selectedDoc, setSelectedDoc] = useState<string | null>('1-1');
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['1']));
+  const [selectedDocId, setSelectedDocId] = useState<string | null>('1-1');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  const allTags = Array.from(
+    new Set(
+      mockTree.flatMap((f) =>
+        (f.children || []).flatMap((c) =>
+          c.type === 'doc' ? (c.tags || []) :
+          (c.children || []).filter((gc) => gc.type === 'doc').flatMap((gc) => gc.tags || [])
+        )
+      )
+    )
+  );
 
   const toggleFolder = (id: string) => {
     const next = new Set(expandedFolders);
@@ -65,32 +76,101 @@ export function KnowledgeBase() {
     setExpandedFolders(next);
   };
 
-  const filterDocs = (docs: Doc[]): Doc[] => {
-    if (!searchQuery) return docs;
-    return docs.reduce<Doc[]>((acc, doc) => {
-      if (doc.type === 'folder' && doc.children) {
-        const filteredChildren = filterDocs(doc.children);
-        if (filteredChildren.length > 0 || doc.title.includes(searchQuery)) {
-          acc.push({ ...doc, children: filteredChildren.length > 0 ? filteredChildren : doc.children });
-        }
-      } else if (doc.title.includes(searchQuery) || doc.tags?.some((t) => t.includes(searchQuery))) {
-        acc.push(doc);
-      }
-      return acc;
-    }, []);
+  const getAllDocs = (items: DocItem[]): DocItem[] => {
+    return items.flatMap((item) => {
+      if (item.type === 'doc') return [item];
+      return item.children ? getAllDocs(item.children) : [];
+    });
   };
 
-  const filteredTree = filterDocs(mockTree);
+  const allDocs = getAllDocs(mockTree);
+
+  const filteredDocs = allDocs.filter((doc) => {
+    const matchSearch = !searchQuery || doc.name.includes(searchQuery) || (doc.tags || []).some((t) => t.includes(searchQuery));
+    const matchTag = !activeTag || (doc.tags || []).includes(activeTag);
+    return matchSearch && matchTag;
+  });
+
+  const selectedDoc = allDocs.find((d) => d.id === selectedDocId);
+
+  // Find path for breadcrumb
+  const findPath = (items: DocItem[], targetId: string, path: string[] = []): string[] | null => {
+    for (const item of items) {
+      if (item.id === targetId) return [...path, item.name];
+      if (item.children) {
+        const found = findPath(item.children, targetId, [...path, item.name]);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  const breadcrumb = selectedDoc ? findPath(mockTree, selectedDoc.id) : null;
+
+  const renderTreeItem = (item: DocItem, depth: number = 0) => {
+    const isExpanded = expandedFolders.has(item.id);
+    const isSelected = selectedDocId === item.id;
+    const isFolder = item.type === 'folder';
+
+    return (
+      <div key={item.id}>
+        <div
+          className="flex items-center gap-1.5 py-1 px-2 rounded cursor-pointer transition-colors text-sm"
+          style={{
+            paddingLeft: `${depth * 16 + 8}px`,
+            backgroundColor: isSelected ? '#F0EDE8' : 'transparent',
+            color: isSelected ? '#1A1A1A' : '#6B6B6B',
+          }}
+          onClick={() => {
+            if (isFolder) {
+              toggleFolder(item.id);
+            } else {
+              setSelectedDocId(item.id);
+            }
+          }}
+          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#F9F8F6'; }}
+          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
+        >
+          {isFolder && (
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={{ transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', flexShrink: 0 }}
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          )}
+          {isFolder ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ flexShrink: 0, color: '#D4A574' }}>
+              <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ flexShrink: 0 }}>
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+          )}
+          <span className="truncate text-xs font-medium">{item.name}</span>
+          {isFolder && item.children && (
+            <span className="text-xs ml-auto" style={{ color: '#9A9A9A' }}>{item.children.length}</span>
+          )}
+        </div>
+        {isFolder && isExpanded && item.children && (
+          <div>
+            {item.children.map((child) => renderTreeItem(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-full">
-      {/* Document tree */}
-      <div className="w-64 border-r overflow-auto p-4" style={{ borderColor: '#E8E6E1' }}>
-        <div className="mb-4">
+      {/* Left sidebar - Tree */}
+      <div className="w-56 border-r flex flex-col" style={{ borderColor: '#E8E6E1' }}>
+        {/* Search */}
+        <div className="p-3 border-b" style={{ borderColor: '#E8E6E1' }}>
           <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B6B6B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.3-4.3" />
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" strokeWidth="1.5">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
             </svg>
             <input
               type="text"
@@ -98,192 +178,204 @@ export function KnowledgeBase() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 rounded text-xs border outline-none transition-colors"
-              style={{ borderColor: '#E8E6E1', backgroundColor: '#FFFFFF' }}
+              style={{ borderColor: '#E8E6E1', backgroundColor: '#FAFAF8' }}
               onFocus={(e) => { e.currentTarget.style.borderColor = '#D4A574'; }}
               onBlur={(e) => { e.currentTarget.style.borderColor = '#E8E6E1'; }}
             />
           </div>
         </div>
 
-        <div className="space-y-0.5">
-          {filteredTree.map((doc) => (
-            <TreeNode
-              key={doc.id}
-              doc={doc}
-              depth={0}
-              expandedFolders={expandedFolders}
-              selectedDoc={selectedDoc}
-              onToggleFolder={toggleFolder}
-              onSelectDoc={setSelectedDoc}
-            />
-          ))}
+        {/* Tags filter */}
+        <div className="px-3 py-2 border-b" style={{ borderColor: '#E8E6E1' }}>
+          <div className="flex items-center gap-1 flex-wrap">
+            <button
+              className="px-1.5 py-0.5 rounded text-xs transition-colors"
+              style={{ backgroundColor: !activeTag ? '#1A1A1A' : 'transparent', color: !activeTag ? '#FAFAF8' : '#6B6B6B' }}
+              onClick={() => setActiveTag(null)}
+            >
+              全部
+            </button>
+            {allTags.slice(0, 6).map((tag) => (
+              <button
+                key={tag}
+                className="px-1.5 py-0.5 rounded text-xs transition-colors"
+                style={{ backgroundColor: activeTag === tag ? '#D4A574' : 'transparent', color: activeTag === tag ? '#1A1A1A' : '#6B6B6B' }}
+                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                onMouseEnter={(e) => { if (activeTag !== tag) e.currentTarget.style.backgroundColor = '#F0EDE8'; }}
+                onMouseLeave={(e) => { if (activeTag !== tag) e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <button
-          className="flex items-center gap-1.5 w-full mt-3 px-2 py-1.5 rounded text-xs transition-colors"
-          style={{ color: '#6B6B6B' }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F5F3EF'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
-          新建文档
-        </button>
+        {/* Tree */}
+        <div className="flex-1 overflow-auto py-2">
+          {mockTree.map((item) => renderTreeItem(item))}
+        </div>
+
+        {/* Recent */}
+        <div className="border-t p-3" style={{ borderColor: '#E8E6E1' }}>
+          <p className="text-xs font-medium mb-2" style={{ color: '#9A9A9A' }}>最近访问</p>
+          <div className="space-y-1">
+            {recentDocs.map((doc) => (
+              <div
+                key={doc.name}
+                className="flex items-center gap-2 py-1 px-1 rounded text-xs cursor-pointer transition-colors"
+                style={{ color: '#6B6B6B' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F9F8F6'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                <span className="truncate flex-1">{doc.name}</span>
+                <span className="flex-shrink-0" style={{ color: '#9A9A9A' }}>{doc.time}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Document content area */}
-      <div className="flex-1 overflow-auto">
-        {selectedDoc === '1-1' ? (
-          <div className="max-w-[640px] mx-auto p-8">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: '#E8F0F5', color: '#6B8FA3' }}>方法论</span>
-              <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: '#F5EBD9', color: '#D4A574' }}>选题</span>
-              <span className="text-xs ml-auto" style={{ color: '#9A9A9A' }}>更新于 2 小时前</span>
-            </div>
-            <h1 className="text-2xl font-semibold mb-6" style={{ fontFamily: "'Noto Serif SC', serif", color: '#1A1A1A' }}>
-              选题方法论
-            </h1>
-            <div className="space-y-4 text-sm" style={{ color: '#1A1A1A', lineHeight: '1.8' }}>
-              <h2 className="text-lg font-semibold" style={{ fontFamily: "'Noto Serif SC', serif" }}>选题评估框架</h2>
-              <p>每个选题在进入生产流程前，需要从以下四个维度进行评估：</p>
-              <div className="border rounded-lg p-4" style={{ borderColor: '#E8E6E1', backgroundColor: '#F9F8F6' }}>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <span className="font-medium" style={{ color: '#D4A574' }}>1.</span>
-                    <div>
-                      <span className="font-medium">时效性</span>
-                      <span style={{ color: '#6B6B6B' }}> — 这个话题在当前时间窗口内是否有关注度？</span>
-                    </div>
+      {/* Main content - Document list / preview */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Breadcrumb + toolbar */}
+        <div className="flex items-center justify-between px-5 py-2.5 border-b" style={{ borderColor: '#E8E6E1' }}>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span style={{ color: '#9A9A9A' }}>知识库</span>
+            {breadcrumb && breadcrumb.map((crumb, i) => (
+              <span key={i} className="flex items-center gap-1.5">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#D4D0C8" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
+                <span style={{ color: i === breadcrumb.length - 1 ? '#1A1A1A' : '#6B6B6B', fontWeight: i === breadcrumb.length - 1 ? 500 : 400 }}>
+                  {crumb}
+                </span>
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button className="p-1.5 rounded transition-colors" style={{ color: '#6B6B6B' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F0EDE8'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect width="8" height="4" x="8" y="2" rx="1" /></svg>
+            </button>
+            <button className="p-1.5 rounded transition-colors" style={{ color: '#6B6B6B' }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F0EDE8'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+              onClick={() => showToast('已分享链接', 'success')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" x2="15.42" y1="13.51" y2="17.49" /><line x1="15.41" x2="8.59" y1="6.51" y2="10.49" /></svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Content area */}
+        <div className="flex-1 overflow-auto">
+          {selectedDoc ? (
+            <div className="max-w-2xl mx-auto p-6">
+              {/* Doc header */}
+              <div className="mb-6">
+                <h1 className="text-xl font-semibold mb-2" style={{ fontFamily: "'Noto Serif SC', serif", color: '#1A1A1A' }}>
+                  {selectedDoc.name}
+                </h1>
+                <div className="flex items-center gap-3 text-xs" style={{ color: '#6B6B6B' }}>
+                  <span>{selectedDoc.author}</span>
+                  <span style={{ color: '#D4D0C8' }}>|</span>
+                  <span>{selectedDoc.lastModified}</span>
+                  <span style={{ color: '#D4D0C8' }}>|</span>
+                  <span>{selectedDoc.wordCount?.toLocaleString()} 字</span>
+                </div>
+                {selectedDoc.tags && (
+                  <div className="flex items-center gap-1.5 mt-3">
+                    {selectedDoc.tags.map((tag) => (
+                      <span key={tag} className="px-2 py-0.5 rounded text-xs" style={{ backgroundColor: '#F0EDE8', color: '#6B6B6B' }}>
+                        {tag}
+                      </span>
+                    ))}
                   </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-medium" style={{ color: '#D4A574' }}>2.</span>
-                    <div>
-                      <span className="font-medium">受众匹配</span>
-                      <span style={{ color: '#6B6B6B' }}> — 是否契合目标受众的核心需求和兴趣？</span>
-                    </div>
+                )}
+              </div>
+
+              {/* Doc content preview */}
+              <div className="space-y-4">
+                <div className="p-4 rounded-lg" style={{ backgroundColor: '#F9F8F6' }}>
+                  <p className="text-sm leading-relaxed" style={{ color: '#1A1A1A', lineHeight: '1.8' }}>
+                    本文档详细阐述了 2025 年度的内容策略规划，包括核心目标、关键指标、内容主题矩阵、发布节奏以及团队协作流程。
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>核心目标</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['品牌影响力提升 40%', '月均产出 20+ 篇', '用户增长 30%'].map((goal) => (
+                      <div key={goal} className="p-3 rounded-md border" style={{ borderColor: '#E8E6E1' }}>
+                        <p className="text-xs font-medium" style={{ color: '#D4A574' }}>{goal}</p>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-medium" style={{ color: '#D4A574' }}>3.</span>
-                    <div>
-                      <span className="font-medium">差异化</span>
-                      <span style={{ color: '#6B6B6B' }}> — 与已有内容相比，是否有新的角度或信息？</span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-medium" style={{ color: '#D4A574' }}>4.</span>
-                    <div>
-                      <span className="font-medium">可执行性</span>
-                      <span style={{ color: '#6B6B6B' }}> — 团队是否有足够的资源和能力完成？</span>
-                    </div>
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>内容主题矩阵</h3>
+                  <div className="border rounded-md overflow-hidden" style={{ borderColor: '#E8E6E1' }}>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr style={{ backgroundColor: '#F9F8F6' }}>
+                          <th className="text-left px-3 py-2 font-medium" style={{ color: '#6B6B6B' }}>主题</th>
+                          <th className="text-left px-3 py-2 font-medium" style={{ color: '#6B6B6B' }}>频率</th>
+                          <th className="text-left px-3 py-2 font-medium" style={{ color: '#6B6B6B' }}>负责</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          ['行业洞察', '每周 1 篇', '张明'],
+                          ['方法论', '每周 1 篇', '李华'],
+                          ['教程', '每周 2 篇', '赵强'],
+                          ['观点', '双周 1 篇', '王芳'],
+                        ].map(([topic, freq, owner]) => (
+                          <tr key={topic} className="border-t" style={{ borderColor: '#E8E6E1' }}>
+                            <td className="px-3 py-2" style={{ color: '#1A1A1A' }}>{topic}</td>
+                            <td className="px-3 py-2" style={{ color: '#6B6B6B' }}>{freq}</td>
+                            <td className="px-3 py-2" style={{ color: '#6B6B6B' }}>{owner}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
-              <h2 className="text-lg font-semibold" style={{ fontFamily: "'Noto Serif SC', serif" }}>选题来源</h2>
-              <p>好的选题来自多渠道的信息输入：</p>
-              <ul className="list-disc pl-5 space-y-1" style={{ color: '#6B6B6B' }}>
-                <li>用户反馈和评论区高频问题</li>
-                <li>行业报告和数据分析</li>
-                <li>竞品内容监控</li>
-                <li>团队头脑风暴</li>
-                <li>社交媒体热点趋势</li>
-              </ul>
+
+              {/* Version history */}
+              <div className="mt-8 pt-4 border-t" style={{ borderColor: '#E8E6E1' }}>
+                <p className="text-xs font-medium mb-3" style={{ color: '#9A9A9A' }}>版本历史</p>
+                <div className="space-y-2">
+                  {[
+                    { time: '2 小时前', author: '张明', action: '更新了核心目标部分' },
+                    { time: '昨天', author: '李华', action: '添加了内容主题矩阵' },
+                    { time: '3 天前', author: '张明', action: '创建了文档' },
+                  ].map((v, i) => (
+                    <div key={i} className="flex items-center gap-3 text-xs">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#F0EDE8', color: '#6B6B6B', fontSize: '9px' }}>
+                        {v.author[0]}
+                      </div>
+                      <span style={{ color: '#6B6B6B' }}>{v.author}</span>
+                      <span style={{ color: '#1A1A1A' }}>{v.action}</span>
+                      <span className="ml-auto" style={{ color: '#9A9A9A' }}>{v.time}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <svg className="mx-auto mb-3" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D4D0C8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              <p className="text-sm" style={{ color: '#9A9A9A' }}>选择左侧文档查看内容</p>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <svg className="mx-auto mb-3" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#D4D0C8" strokeWidth="1">
+                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <p className="text-sm" style={{ color: '#6B6B6B' }}>选择一个文档查看详情</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
-  );
-}
-
-function TreeNode({
-  doc,
-  depth,
-  expandedFolders,
-  selectedDoc,
-  onToggleFolder,
-  onSelectDoc,
-}: {
-  doc: Doc;
-  depth: number;
-  expandedFolders: Set<string>;
-  selectedDoc: string | null;
-  onToggleFolder: (id: string) => void;
-  onSelectDoc: (id: string) => void;
-}) {
-  const isExpanded = expandedFolders.has(doc.id);
-  const isSelected = selectedDoc === doc.id;
-
-  if (doc.type === 'folder') {
-    return (
-      <div>
-        <button
-          className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-left transition-colors"
-          style={{
-            paddingLeft: `${depth * 12 + 8}px`,
-            backgroundColor: isSelected ? '#F5F3EF' : 'transparent',
-            color: '#1A1A1A',
-          }}
-          onClick={() => onToggleFolder(doc.id)}
-          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#FAFAF8'; }}
-          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
-        >
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-            className="transition-transform duration-150 flex-shrink-0"
-            style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-          >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A574" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-          </svg>
-          <span className="text-sm font-medium truncate">{doc.title}</span>
-        </button>
-        {isExpanded && doc.children && (
-          <div>
-            {doc.children.map((child) => (
-              <TreeNode
-                key={child.id}
-                doc={child}
-                depth={depth + 1}
-                expandedFolders={expandedFolders}
-                selectedDoc={selectedDoc}
-                onToggleFolder={onToggleFolder}
-                onSelectDoc={onSelectDoc}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <button
-      className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-left transition-colors"
-      style={{
-        paddingLeft: `${depth * 12 + 22}px`,
-        backgroundColor: isSelected ? '#F5F3EF' : 'transparent',
-        color: isSelected ? '#1A1A1A' : '#6B6B6B',
-      }}
-      onClick={() => onSelectDoc(doc.id)}
-      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#FAFAF8'; }}
-      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-        <polyline points="14 2 14 8 20 8" />
-      </svg>
-      <span className="text-sm truncate">{doc.title}</span>
-    </button>
   );
 }

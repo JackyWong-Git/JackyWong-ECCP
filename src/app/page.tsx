@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Sidebar } from '@/components/sidebar';
+import { TopBar } from '@/components/top-bar';
+import { ToastContainer } from '@/components/toast';
 import { ContentDashboard } from '@/components/content-dashboard';
 import { BlockEditor } from '@/components/block-editor';
 import { StoryboardTimeline } from '@/components/storyboard-timeline';
@@ -36,9 +38,13 @@ export default function Home() {
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
-      <main className="flex-1 overflow-auto">
-        {renderView()}
-      </main>
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <TopBar currentView={currentView} onViewChange={setCurrentView} />
+        <main className="flex-1 overflow-auto">
+          {renderView()}
+        </main>
+      </div>
+      <ToastContainer />
     </div>
   );
 }

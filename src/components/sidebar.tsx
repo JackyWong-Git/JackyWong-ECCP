@@ -9,10 +9,11 @@ interface SidebarProps {
   onToggleCollapse: () => void;
 }
 
-const navItems: { id: ViewType; label: string; icon: React.ReactNode }[] = [
+const navItems: { id: ViewType; label: string; icon: React.ReactNode; shortcut: string }[] = [
   {
     id: 'dashboard',
     label: '内容管理',
+    shortcut: '1',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -25,6 +26,7 @@ const navItems: { id: ViewType; label: string; icon: React.ReactNode }[] = [
   {
     id: 'editor',
     label: '块编辑器',
+    shortcut: '2',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 20h9" />
@@ -35,6 +37,7 @@ const navItems: { id: ViewType; label: string; icon: React.ReactNode }[] = [
   {
     id: 'storyboard',
     label: '分镜时间轴',
+    shortcut: '3',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M16 3h5v5" />
@@ -47,6 +50,7 @@ const navItems: { id: ViewType; label: string; icon: React.ReactNode }[] = [
   {
     id: 'knowledge',
     label: '知识库',
+    shortcut: '4',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
@@ -55,6 +59,12 @@ const navItems: { id: ViewType; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+];
+
+const quickLinks = [
+  { label: '最近编辑', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg> },
+  { label: '收藏夹', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></svg> },
+  { label: '回收站', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg> },
 ];
 
 export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse }: SidebarProps) {
@@ -89,8 +99,13 @@ export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 py-3 px-2">
+      {/* Main Navigation */}
+      <nav className="flex-1 py-3 px-2 overflow-auto">
+        {!collapsed && (
+          <div className="px-2.5 mb-2">
+            <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#4A4A4A' }}>工作区</span>
+          </div>
+        )}
         <div className="space-y-0.5">
           {navItems.map((item) => {
             const isActive = currentView === item.id;
@@ -98,7 +113,7 @@ export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse
               <button
                 key={item.id}
                 onClick={() => onViewChange(item.id)}
-                className="flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-left transition-all duration-150"
+                className="group flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-left transition-all duration-150 relative"
                 style={{
                   backgroundColor: isActive ? '#2A2A2A' : 'transparent',
                   color: isActive ? '#D4A574' : '#9A9A9A',
@@ -110,30 +125,99 @@ export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse
                   if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
+                {/* Active indicator */}
+                {isActive && (
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full"
+                    style={{ backgroundColor: '#D4A574' }}
+                  />
+                )}
                 <span className="flex-shrink-0">{item.icon}</span>
-                {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+                {!collapsed && (
+                  <>
+                    <span className="text-sm font-medium flex-1">{item.label}</span>
+                    <span
+                      className="text-xs opacity-0 group-hover:opacity-100 transition-opacity px-1 py-0.5 rounded"
+                      style={{ color: '#6B6B6B', backgroundColor: '#333' }}
+                    >
+                      {item.shortcut}
+                    </span>
+                  </>
+                )}
               </button>
             );
           })}
         </div>
+
+        {/* Quick links */}
+        {!collapsed && (
+          <>
+            <div className="px-2.5 mt-5 mb-2">
+              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: '#4A4A4A' }}>快捷方式</span>
+            </div>
+            <div className="space-y-0.5">
+              {quickLinks.map((link) => (
+                <button
+                  key={link.label}
+                  className="flex items-center gap-2.5 w-full rounded-md px-2.5 py-1.5 text-left transition-all duration-150"
+                  style={{ color: '#6B6B6B' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#252525'; e.currentTarget.style.color = '#9A9A9A'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#6B6B6B'; }}
+                >
+                  {link.icon}
+                  <span className="text-sm">{link.label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </nav>
 
       {/* Bottom section */}
-      <div className="px-2 pb-3 border-t" style={{ borderColor: '#2A2A2A' }}>
-        <button
-          onClick={onToggleCollapse}
-          className="flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-left transition-all duration-150"
-          style={{ color: '#6B6B6B' }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#9A9A9A'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = '#6B6B6B'; }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M9 3v18" />
-            <path d="m14 9 3 3-3 3" />
-          </svg>
-          {!collapsed && <span className="text-sm">收起侧栏</span>}
-        </button>
+      <div className="border-t" style={{ borderColor: '#2A2A2A' }}>
+        {/* User info */}
+        {!collapsed && (
+          <div className="px-3 py-2.5 flex items-center gap-2.5">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+              style={{ backgroundColor: '#D4A574', color: '#1A1A1A' }}
+            >
+              Z
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate" style={{ color: '#E8E6E1' }}>张明</p>
+              <p className="text-xs truncate" style={{ color: '#6B6B6B' }}>主编</p>
+            </div>
+            <button
+              className="p-1 rounded transition-colors"
+              style={{ color: '#6B6B6B' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#9A9A9A'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#6B6B6B'; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+            </button>
+          </div>
+        )}
+
+        {/* Collapse toggle */}
+        <div className="px-2 pb-2">
+          <button
+            onClick={onToggleCollapse}
+            className="flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-left transition-all duration-150"
+            style={{ color: '#6B6B6B' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = '#9A9A9A'; e.currentTarget.style.backgroundColor = '#252525'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = '#6B6B6B'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: collapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+            >
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M9 3v18" />
+              <path d="m14 9 3 3-3 3" />
+            </svg>
+            {!collapsed && <span className="text-sm">收起侧栏</span>}
+          </button>
+        </div>
       </div>
     </aside>
   );
