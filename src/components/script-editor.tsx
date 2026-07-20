@@ -128,12 +128,59 @@ export function ScriptEditor() {
     showToast(`已插入${slashMenuItems.find(i => i.type === type)?.label || '内容块'}`, 'success');
   };
 
-  const handleAdaptChannel = (channelId: string) => {
+  const [channelResults, setChannelResults] = useState<Record<string, string>>({});
+
+  const handleAdaptChannel = async (channelId: string) => {
     setChannelStates(prev => prev.map(c => c.id === channelId ? { ...c, status: 'adapting' } : c));
-    setTimeout(() => {
+
+    const content = blocks.map(b => b.content).filter(Boolean).join('\n\n');
+    if (!content.trim()) {
+      showToast('编辑器内容为空，无法适配', 'error');
+      setChannelStates(prev => prev.map(c => c.id === channelId ? { ...c, status: 'idle' } : c));
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/adapt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, targetChannel: channelId }),
+      });
+
+      if (!res.ok) throw new Error('Adapt request failed');
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let result = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const text = decoder.decode(value);
+          const lines = text.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.text) result += parsed.text;
+                if (parsed.error) throw new Error(parsed.error);
+              } catch { /* skip non-JSON lines */ }
+            }
+          }
+        }
+      }
+
+      setChannelResults(prev => ({ ...prev, [channelId]: result }));
       setChannelStates(prev => prev.map(c => c.id === channelId ? { ...c, status: 'done' } : c));
       showToast(`${channels.find(c => c.id === channelId)?.name} 适配完成`, 'success');
-    }, 1500);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '适配失败';
+      setChannelStates(prev => prev.map(c => c.id === channelId ? { ...c, status: 'idle' } : c));
+      showToast(msg, 'error');
+    }
   };
 
   const handleSaveVersion = () => {
@@ -469,16 +516,54 @@ export function ScriptEditor() {
             <div className="space-y-3">
               <div className="text-xs mb-3" style={{ color: '#9A9A9A' }}>AI 辅助工具</div>
               {[
-                { label: '续写段落', desc: '基于上下文自动续写' },
-                { label: '改写润色', desc: '优化表达和语法' },
-                { label: '生成标题', desc: '基于内容生成多个标题' },
-                { label: '提取摘要', desc: '自动生成文章摘要' },
-                { label: '翻译', desc: '多语言翻译' },
-                { label: 'SEO 优化', desc: '优化关键词密度和结构' },
+                { label: '续写段落', desc: '基于上下文自动续写', skill: 'continue' },
+                { label: '改写润色', desc: '优化表达和语法', skill: 'polish' },
+                { label: '生成标题', desc: '基于内容生成多个标题', skill: 'title' },
+                { label: '提取摘要', desc: '自动生成文章摘要', skill: 'summary' },
+                { label: '翻译', desc: '多语言翻译', skill: 'translate' },
+                { label: 'SEO 优化', desc: '优化关键词密度和结构', skill: 'seo' },
               ].map(tool => (
                 <button
                   key={tool.label}
-                  onClick={() => showToast(`${tool.label}功能开发中`, 'info')}
+                  onClick={async () => {
+                    const content = blocks.map(b => b.content).filter(Boolean).join('\n\n');
+                    if (!content.trim()) { showToast('编辑器内容为空', 'error'); return; }
+                    try {
+                      const res = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ skill: tool.skill, brief: content }),
+                      });
+                      if (!res.ok) throw new Error('Request failed');
+                      const reader = res.body?.getReader();
+                      const decoder = new TextDecoder();
+                      let result = '';
+                      if (reader) {
+                        while (true) {
+                          const { done, value } = await reader.read();
+                          if (done) break;
+                          const text = decoder.decode(value);
+                          const lines = text.split('\n');
+                          for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                              const data = line.slice(6);
+                              if (data === '[DONE]') break;
+                              try {
+                                const parsed = JSON.parse(data);
+                                if (parsed.text) result += parsed.text;
+                              } catch { /* skip */ }
+                            }
+                          }
+                        }
+                      }
+                      // Insert result as a new block
+                      const newBlock: Block = { id: nextId(), type: 'paragraph', content: result };
+                      setBlocks(prev => [...prev, newBlock]);
+                      showToast(`${tool.label}完成`, 'success');
+                    } catch (err) {
+                      showToast(`${tool.label}失败: ${err instanceof Error ? err.message : '未知错误'}`, 'error');
+                    }
+                  }}
                   className="w-full flex items-center justify-between p-3 rounded-md border text-left transition-colors"
                   style={{ borderColor: '#E8E6E1', backgroundColor: '#fff' }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#F8F7F4'; }}

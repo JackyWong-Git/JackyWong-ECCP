@@ -19,7 +19,11 @@ src/
 ├── app/
 │   ├── layout.tsx              # 根布局（next/font 字体优化）
 │   ├── page.tsx                # 主页面（6 模块视图切换）
-│   └── globals.css             # 全局样式 + 设计 Token
+│   ├── globals.css             # 全局样式 + 设计 Token
+│   └── api/
+│       ├── generate/route.ts   # AI 内容生成（流式 SSE，coze-coding-dev-sdk LLMClient）
+│       ├── discover/route.ts   # 热榜发现（coze-coding-dev-sdk SearchClient）
+│       └── adapt/route.ts      # 多渠道适配（流式 SSE，LLMClient）
 ├── components/
 │   ├── sidebar.tsx             # 侧边栏导航（6 模块 + 用户信息）
 │   ├── top-bar.tsx             # 顶栏（面包屑 + Cmd+K 命令面板 + 通知）
@@ -29,8 +33,8 @@ src/
 │   ├── design-system-manager.tsx # Design System 品牌契约管理
 │   ├── automation-page.tsx     # Automation 自动化编排
 │   ├── craft-rules.tsx         # Craft 工艺规则库
-│   ├── topics-board.tsx        # 选题看板（NocoDB 风格）
-│   ├── script-editor.tsx       # 脚本编辑器（Ghost + AFFiNE 风格）
+│   ├── topics-board.tsx        # 选题看板（NocoDB 风格 + 热榜发现）
+│   ├── script-editor.tsx       # 脚本编辑器（Ghost + AFFiNE 风格 + AI 适配）
 │   ├── workflow-builder.tsx    # 工作流编排（Dify 风格）
 │   ├── knowledge-base.tsx      # 知识库（Dify RAG 风格）
 │   ├── analytics-dashboard.tsx # 数据看板（Vercel 风格）
