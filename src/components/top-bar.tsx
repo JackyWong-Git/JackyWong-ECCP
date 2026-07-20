@@ -9,11 +9,11 @@ interface TopBarProps {
 }
 
 const viewLabels: Record<ViewType, string> = {
-  topics: '选题看板',
-  scripts: '脚本编辑器',
-  workflows: '工作流编排',
-  knowledge: '知识库',
-  analytics: '数据看板',
+  home: 'Home',
+  studio: 'Studio',
+  'design-system': 'Design System',
+  automation: 'Automation',
+  craft: 'Craft',
 };
 
 interface CommandItem {
@@ -36,32 +36,32 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
 
   const commands: CommandItem[] = [
     {
-      id: 'nav-topics', label: '前往选题看板', desc: '切换到选题管理视图', icon: <IconGrid />,
-      action: () => { onViewChange('topics'); setShowCommand(false); },
+      id: 'nav-home', label: '前往 Home', desc: '统一创作入口', icon: <IconGrid />,
+      action: () => { onViewChange('home'); setShowCommand(false); },
     },
     {
-      id: 'nav-scripts', label: '前往脚本编辑器', desc: '切换到脚本编辑器', icon: <IconEdit />,
-      action: () => { onViewChange('scripts'); setShowCommand(false); },
+      id: 'nav-studio', label: '前往 Studio', desc: '一源多渠适配', icon: <IconEdit />,
+      action: () => { onViewChange('studio'); setShowCommand(false); },
     },
     {
-      id: 'nav-workflows', label: '前往工作流编排', desc: '切换到工作流视图', icon: <IconTimeline />,
-      action: () => { onViewChange('workflows'); setShowCommand(false); },
+      id: 'nav-design-system', label: '前往 Design System', desc: '品牌契约管理', icon: <IconTimeline />,
+      action: () => { onViewChange('design-system'); setShowCommand(false); },
     },
     {
-      id: 'nav-knowledge', label: '前往知识库', desc: '切换到知识库视图', icon: <IconBook />,
-      action: () => { onViewChange('knowledge'); setShowCommand(false); },
+      id: 'nav-automation', label: '前往 Automation', desc: '自动化工作流', icon: <IconBook />,
+      action: () => { onViewChange('automation'); setShowCommand(false); },
     },
     {
-      id: 'nav-analytics', label: '前往数据看板', desc: '切换到数据分析', icon: <IconGrid />,
-      action: () => { onViewChange('analytics'); setShowCommand(false); },
+      id: 'nav-craft', label: '前往 Craft', desc: '工艺规则库', icon: <IconGrid />,
+      action: () => { onViewChange('craft'); setShowCommand(false); },
     },
     {
-      id: 'new-article', label: '新建文章', desc: '创建一篇新内容', icon: <IconPlus />,
-      action: () => { onViewChange('scripts'); setShowCommand(false); },
+      id: 'new-article', label: '新建内容', desc: '从 Home 开始创作', icon: <IconPlus />,
+      action: () => { onViewChange('home'); setShowCommand(false); },
     },
     {
-      id: 'new-topic', label: '新建选题', desc: '添加新选题', icon: <IconFilm />,
-      action: () => { onViewChange('topics'); setShowCommand(false); },
+      id: 'new-automation', label: '新建自动化', desc: '创建自动化工作流', icon: <IconFilm />,
+      action: () => { onViewChange('automation'); setShowCommand(false); },
     },
   ];
 

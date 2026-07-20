@@ -4,32 +4,32 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { TopBar } from '@/components/top-bar';
 import { ToastContainer } from '@/components/toast';
-import { TopicsBoard } from '@/components/topics-board';
-import { ScriptEditor } from '@/components/script-editor';
-import { WorkflowBuilder } from '@/components/workflow-builder';
-import { KnowledgeBase } from '@/components/knowledge-base';
-import { AnalyticsDashboard } from '@/components/analytics-dashboard';
+import HomeComposer from '@/components/home-composer';
+import StudioMultiArtifact from '@/components/studio-multi-artifact';
+import DesignSystemManager from '@/components/design-system-manager';
+import AutomationPage from '@/components/automation-page';
+import CraftPage from '@/components/craft-rules';
 
-export type ViewType = 'topics' | 'scripts' | 'workflows' | 'knowledge' | 'analytics';
+export type ViewType = 'home' | 'studio' | 'design-system' | 'automation' | 'craft';
 
 export default function Home() {
-  const [currentView, setCurrentView] = useState<ViewType>('topics');
+  const [currentView, setCurrentView] = useState<ViewType>('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const renderView = () => {
     switch (currentView) {
-      case 'topics':
-        return <TopicsBoard />;
-      case 'scripts':
-        return <ScriptEditor />;
-      case 'workflows':
-        return <WorkflowBuilder />;
-      case 'knowledge':
-        return <KnowledgeBase />;
-      case 'analytics':
-        return <AnalyticsDashboard />;
+      case 'home':
+        return <HomeComposer />;
+      case 'studio':
+        return <StudioMultiArtifact />;
+      case 'design-system':
+        return <DesignSystemManager />;
+      case 'automation':
+        return <AutomationPage />;
+      case 'craft':
+        return <CraftPage />;
       default:
-        return <TopicsBoard />;
+        return <HomeComposer />;
     }
   };
 
@@ -43,7 +43,7 @@ export default function Home() {
       />
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopBar currentView={currentView} onViewChange={setCurrentView} />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-hidden flex flex-col">
           {renderView()}
         </main>
       </div>
