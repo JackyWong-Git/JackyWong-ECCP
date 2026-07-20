@@ -4,29 +4,32 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { TopBar } from '@/components/top-bar';
 import { ToastContainer } from '@/components/toast';
-import { ContentDashboard } from '@/components/content-dashboard';
-import { BlockEditor } from '@/components/block-editor';
-import { StoryboardTimeline } from '@/components/storyboard-timeline';
+import { TopicsBoard } from '@/components/topics-board';
+import { ScriptEditor } from '@/components/script-editor';
+import { WorkflowBuilder } from '@/components/workflow-builder';
 import { KnowledgeBase } from '@/components/knowledge-base';
+import { AnalyticsDashboard } from '@/components/analytics-dashboard';
 
-export type ViewType = 'dashboard' | 'editor' | 'storyboard' | 'knowledge';
+export type ViewType = 'topics' | 'scripts' | 'workflows' | 'knowledge' | 'analytics';
 
 export default function Home() {
-  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
+  const [currentView, setCurrentView] = useState<ViewType>('topics');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const renderView = () => {
     switch (currentView) {
-      case 'dashboard':
-        return <ContentDashboard />;
-      case 'editor':
-        return <BlockEditor />;
-      case 'storyboard':
-        return <StoryboardTimeline />;
+      case 'topics':
+        return <TopicsBoard />;
+      case 'scripts':
+        return <ScriptEditor />;
+      case 'workflows':
+        return <WorkflowBuilder />;
       case 'knowledge':
         return <KnowledgeBase />;
+      case 'analytics':
+        return <AnalyticsDashboard />;
       default:
-        return <ContentDashboard />;
+        return <TopicsBoard />;
     }
   };
 

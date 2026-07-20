@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-ContentFlow - 内容创作全链路平台原型。从选题、写作、编辑到发布的一站式内容创作工作空间。
+ContentFlow - 内容创作全链路平台原型。从选题、脚本、工作流编排到发布的一站式内容创作工作空间。
 
 ## 技术栈
 
@@ -17,24 +17,30 @@ ContentFlow - 内容创作全链路平台原型。从选题、写作、编辑到
 ```
 src/
 ├── app/
-│   ├── layout.tsx          # 根布局
-│   ├── page.tsx            # 主页面（视图切换）
-│   └── globals.css         # 全局样式 + 设计 Token
+│   ├── layout.tsx              # 根布局（next/font 字体优化）
+│   ├── page.tsx                # 主页面（5 模块视图切换）
+│   └── globals.css             # 全局样式 + 设计 Token
 ├── components/
-│   ├── sidebar.tsx         # 侧边栏导航
-│   ├── content-dashboard.tsx  # 内容管理（列表/看板/日历）
-│   ├── block-editor.tsx    # 块编辑器（斜杠菜单）
-│   ├── storyboard-timeline.tsx  # 分镜时间轴
-│   ├── knowledge-base.tsx  # 知识库文档树
-│   └── ui/                 # shadcn/ui 组件库
+│   ├── sidebar.tsx             # 侧边栏导航（5 模块 + 用户信息）
+│   ├── top-bar.tsx             # 顶栏（面包屑 + Cmd+K 命令面板 + 通知）
+│   ├── toast.tsx               # 全局 Toast 通知系统
+│   ├── topics-board.tsx        # 选题看板（NocoDB 风格）
+│   ├── script-editor.tsx       # 脚本编辑器（Ghost + AFFiNE 风格）
+│   ├── workflow-builder.tsx    # 工作流编排（Dify 风格）
+│   ├── knowledge-base.tsx      # 知识库（Dify RAG 风格）
+│   ├── analytics-dashboard.tsx # 数据看板（Vercel 风格）
+│   └── ui/                     # shadcn/ui 组件库
 ```
 
-## 核心模块
+## 核心模块（对标优秀案例）
 
-1. **内容管理仪表盘** - 三种视图（列表/看板/日历）切换，搜索过滤
-2. **块编辑器** - 支持标题/正文/引用/代码/列表/图片/分割线，斜杠菜单插入
-3. **分镜时间轴** - 场景卡片 + 时间轴可视化 + 详情面板
-4. **知识库** - 文档树 + 搜索 + 标签 + 内容预览
+| 模块 | 对标 | 核心交互 |
+|------|------|---------|
+| 选题看板 | NocoDB | 卡片拖拽 + 弹窗详情（不跳页）+ 看板/表格切换 |
+| 脚本编辑器 | Ghost + AFFiNE | 块编辑器 + 斜杠菜单 + 右侧面板（渠道适配/元数据/版本/AI）|
+| 工作流编排 | Dify | 节点拖拽 + 连线 + 节点配置面板 + 模板库 |
+| 知识库 | Dify Knowledge | 文档上传 + 分块管理 + RAG 流程可视化 + 语义搜索 |
+| 数据看板 | Vercel Dashboard | 指标卡片 + 迷你趋势图 + 渠道分布 + 内容排行 |
 
 ## 设计规范
 

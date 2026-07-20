@@ -9,10 +9,11 @@ interface TopBarProps {
 }
 
 const viewLabels: Record<ViewType, string> = {
-  dashboard: '内容管理',
-  editor: '块编辑器',
-  storyboard: '分镜时间轴',
+  topics: '选题看板',
+  scripts: '脚本编辑器',
+  workflows: '工作流编排',
   knowledge: '知识库',
+  analytics: '数据看板',
 };
 
 interface CommandItem {
@@ -35,28 +36,32 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
 
   const commands: CommandItem[] = [
     {
-      id: 'nav-dashboard', label: '前往内容管理', desc: '切换到内容管理视图', icon: <IconGrid />,
-      action: () => { onViewChange('dashboard'); setShowCommand(false); },
+      id: 'nav-topics', label: '前往选题看板', desc: '切换到选题管理视图', icon: <IconGrid />,
+      action: () => { onViewChange('topics'); setShowCommand(false); },
     },
     {
-      id: 'nav-editor', label: '前往编辑器', desc: '切换到块编辑器', icon: <IconEdit />,
-      action: () => { onViewChange('editor'); setShowCommand(false); },
+      id: 'nav-scripts', label: '前往脚本编辑器', desc: '切换到脚本编辑器', icon: <IconEdit />,
+      action: () => { onViewChange('scripts'); setShowCommand(false); },
     },
     {
-      id: 'nav-storyboard', label: '前往分镜时间轴', desc: '切换到分镜视图', icon: <IconTimeline />,
-      action: () => { onViewChange('storyboard'); setShowCommand(false); },
+      id: 'nav-workflows', label: '前往工作流编排', desc: '切换到工作流视图', icon: <IconTimeline />,
+      action: () => { onViewChange('workflows'); setShowCommand(false); },
     },
     {
       id: 'nav-knowledge', label: '前往知识库', desc: '切换到知识库视图', icon: <IconBook />,
       action: () => { onViewChange('knowledge'); setShowCommand(false); },
     },
     {
-      id: 'new-article', label: '新建文章', desc: '创建一篇新内容', icon: <IconPlus />,
-      action: () => { onViewChange('editor'); setShowCommand(false); },
+      id: 'nav-analytics', label: '前往数据看板', desc: '切换到数据分析', icon: <IconGrid />,
+      action: () => { onViewChange('analytics'); setShowCommand(false); },
     },
     {
-      id: 'new-scene', label: '新建场景', desc: '添加分镜场景', icon: <IconFilm />,
-      action: () => { onViewChange('storyboard'); setShowCommand(false); },
+      id: 'new-article', label: '新建文章', desc: '创建一篇新内容', icon: <IconPlus />,
+      action: () => { onViewChange('scripts'); setShowCommand(false); },
+    },
+    {
+      id: 'new-topic', label: '新建选题', desc: '添加新选题', icon: <IconFilm />,
+      action: () => { onViewChange('topics'); setShowCommand(false); },
     },
   ];
 
