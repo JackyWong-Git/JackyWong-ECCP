@@ -54,9 +54,6 @@ export function TopicsBoard() {
   const [dragOverCol, setDragOverCol] = useState<TopicStatus | null>(null);
   const [showNewTopic, setShowNewTopic] = useState(false);
   const [newTopicTitle, setNewTopicTitle] = useState('');
-  const [discoverSource, setDiscoverSource] = useState<'manual' | 'douyin' | 'weibo' | 'industry'>('manual');
-  const [discoverLoading, setDiscoverLoading] = useState(false);
-  const [discoverResults, setDiscoverResults] = useState<Array<{ title: string; heat: string; source: string }>>([]);
 
   const filtered = topics.filter(t =>
     !searchQuery || t.title.includes(searchQuery) || t.tags.some(tag => tag.includes(searchQuery))
@@ -106,46 +103,6 @@ export function TopicsBoard() {
     setNewTopicTitle('');
     setShowNewTopic(false);
     showToast('选题已创建', 'success');
-  };
-
-  const handleDiscover = async (source: 'douyin' | 'weibo' | 'industry') => {
-    setDiscoverLoading(true);
-    setDiscoverResults([]);
-    try {
-      const res = await fetch(`/api/discover?source=${source}`);
-      if (!res.ok) throw new Error('Discover request failed');
-      const data = await res.json();
-      if (data.items) {
-        setDiscoverResults(data.items.map((item: { title: string; heat?: string; source?: string }) => ({
-          title: item.title,
-          heat: item.heat || '热门',
-          source: item.source || source,
-        })));
-      }
-      showToast(`已获取${source === 'douyin' ? '抖音' : source === 'weibo' ? '微博' : '行业'}热榜`, 'success');
-    } catch (err) {
-      showToast(`获取失败: ${err instanceof Error ? err.message : '未知错误'}`, 'error');
-    } finally {
-      setDiscoverLoading(false);
-    }
-  };
-
-  const handleConvertToTopic = (title: string, source: string) => {
-    const newTopic: Topic = {
-      id: String(Date.now()),
-      title,
-      description: `从${source}热榜导入的选题`,
-      status: 'idea',
-      priority: 'medium',
-      assignee: '陈默',
-      tags: [source],
-      source: `${source}热榜`,
-      createdAt: new Date().toISOString().split('T')[0],
-      estimatedWords: 0,
-      channel: '待定',
-    };
-    setTopics(prev => [newTopic, ...prev]);
-    showToast(`已导入选题: ${title}`, 'success');
   };
 
   return (
@@ -198,55 +155,7 @@ export function TopicsBoard() {
         </div>
       </div>
 
-      {/* Discover source tabs */}
-      <div className="px-6 py-2 border-b flex items-center gap-2" style={{ borderColor: '#E8E6E1', backgroundColor: '#F8F7F4' }}>
-        <span className="text-xs mr-1" style={{ color: '#9A9A9A' }}>发现来源:</span>
-        {([
-          { id: 'manual' as const, label: '手动创建' },
-          { id: 'douyin' as const, label: '抖音热榜' },
-          { id: 'weibo' as const, label: '微博热搜' },
-          { id: 'industry' as const, label: '行业动态' },
-        ]).map(src => (
-          <button
-            key={src.id}
-            onClick={() => {
-              setDiscoverSource(src.id);
-              if (src.id !== 'manual') handleDiscover(src.id);
-            }}
-            className="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-            style={{
-              backgroundColor: discoverSource === src.id ? '#1A1A1A' : 'transparent',
-              color: discoverSource === src.id ? '#fff' : '#6B6B6B',
-            }}
-          >
-            {src.label}
-          </button>
-        ))}
-        {discoverLoading && <span className="text-xs ml-2" style={{ color: '#C17B3E' }}>加载中...</span>}
-      </div>
-
-      {/* Discover results panel */}
-      {discoverSource !== 'manual' && discoverResults.length > 0 && (
-        <div className="px-6 py-3 border-b max-h-[200px] overflow-y-auto" style={{ borderColor: '#E8E6E1', backgroundColor: '#FAFAF8' }}>
-          <div className="grid grid-cols-2 gap-2">
-            {discoverResults.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2 rounded-md border" style={{ borderColor: '#E8E6E1', backgroundColor: '#fff' }}>
-                <div className="flex-1 min-w-0 mr-2">
-                  <div className="text-sm truncate" style={{ color: '#1A1A1A' }}>{item.title}</div>
-                  <div className="text-xs" style={{ color: '#9A9A9A' }}>{item.heat}</div>
-                </div>
-                <button
-                  onClick={() => handleConvertToTopic(item.title, item.source)}
-                  className="text-xs px-2 py-1 rounded-md font-medium flex-shrink-0"
-                  style={{ backgroundColor: '#F0EDE8', color: '#6B6B6B' }}
-                >
-                  转为选题
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* New topic inline form */}
       {showNewTopic && (
         <div className="px-6 py-3 border-b flex items-center gap-3" style={{ borderColor: '#E8E6E1', backgroundColor: '#F8F7F4' }}>
           <input
