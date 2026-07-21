@@ -14,7 +14,7 @@ const viewLabels: Record<ViewType, string> = {
   'design-system': 'Design System',
   automation: 'Automation',
   craft: 'Craft',
-  requests: '需求入口',
+  requests: '部门报送信息',
   campaigns: '活动管理',
   topics: '选题看板',
   scripts: '脚本编辑',
@@ -50,7 +50,7 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
       action: () => { onViewChange('studio'); setShowCommand(false); },
     },
     {
-      id: 'nav-requests', label: '前往需求入口', desc: '部门宣传需求提交', icon: <IconPlus />,
+      id: 'nav-requests', label: '前往部门报送信息', desc: '部门报送信息审核分发', icon: <IconPlus />,
       action: () => { onViewChange('requests'); setShowCommand(false); },
     },
     {
