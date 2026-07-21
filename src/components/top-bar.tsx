@@ -9,11 +9,17 @@ interface TopBarProps {
 }
 
 const viewLabels: Record<ViewType, string> = {
-  submission: '素材上报',
-  coordination: '内容调度',
-  publishing: '渠道发布',
-  knowledge: '素材知识库',
-  feedback: '数据回流',
+  home: 'Home',
+  studio: 'Studio',
+  'design-system': 'Design System',
+  automation: 'Automation',
+  craft: 'Craft',
+  requests: '需求入口',
+  campaigns: '活动管理',
+  topics: '选题看板',
+  scripts: '脚本编辑',
+  workflows: '工作流',
+  analytics: '数据看板',
 };
 
 interface CommandItem {
@@ -36,32 +42,36 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
 
   const commands: CommandItem[] = [
     {
-      id: 'nav-coordination', label: '前往内容调度', desc: '切换到中台调度看板', icon: <IconGrid />,
-      action: () => { onViewChange('coordination'); setShowCommand(false); },
+      id: 'nav-home', label: '前往 Home', desc: '统一创作入口', icon: <IconGrid />,
+      action: () => { onViewChange('home'); setShowCommand(false); },
     },
     {
-      id: 'nav-submission', label: '前往素材上报', desc: '切换到素材上报入口', icon: <IconPlus />,
-      action: () => { onViewChange('submission'); setShowCommand(false); },
+      id: 'nav-studio', label: '前往 Studio', desc: '一源多渠适配', icon: <IconPlus />,
+      action: () => { onViewChange('studio'); setShowCommand(false); },
     },
     {
-      id: 'nav-publishing', label: '前往渠道发布', desc: '切换到渠道发布管理', icon: <IconTimeline />,
-      action: () => { onViewChange('publishing'); setShowCommand(false); },
+      id: 'nav-requests', label: '前往需求入口', desc: '部门宣传需求提交', icon: <IconPlus />,
+      action: () => { onViewChange('requests'); setShowCommand(false); },
     },
     {
-      id: 'nav-knowledge', label: '前往素材知识库', desc: '切换到素材知识库', icon: <IconBook />,
-      action: () => { onViewChange('knowledge'); setShowCommand(false); },
+      id: 'nav-campaigns', label: '前往活动管理', desc: '活动全生命周期管理', icon: <IconTimeline />,
+      action: () => { onViewChange('campaigns'); setShowCommand(false); },
     },
     {
-      id: 'nav-feedback', label: '前往数据回流', desc: '切换到数据分析', icon: <IconGrid />,
-      action: () => { onViewChange('feedback'); setShowCommand(false); },
+      id: 'nav-topics', label: '前往选题看板', desc: '选题管理', icon: <IconFilm />,
+      action: () => { onViewChange('topics'); setShowCommand(false); },
     },
     {
-      id: 'new-material', label: '上报素材', desc: '提交一条新素材', icon: <IconPlus />,
-      action: () => { onViewChange('submission'); setShowCommand(false); },
+      id: 'nav-analytics', label: '前往数据看板', desc: '数据分析', icon: <IconGrid />,
+      action: () => { onViewChange('analytics'); setShowCommand(false); },
     },
     {
-      id: 'new-topic', label: '新建选题', desc: '添加新选题', icon: <IconFilm />,
-      action: () => { onViewChange('coordination'); setShowCommand(false); },
+      id: 'new-request', label: '提交宣传需求', desc: '部门提交宣传需求', icon: <IconPlus />,
+      action: () => { onViewChange('requests'); setShowCommand(false); },
+    },
+    {
+      id: 'new-campaign', label: '新建活动', desc: '创建传播活动', icon: <IconFilm />,
+      action: () => { onViewChange('campaigns'); setShowCommand(false); },
     },
   ];
 
