@@ -16,10 +16,11 @@ interface NavItem {
   shortcut?: string;
 }
 
-const mainNav: NavItem[] = [
+// 入口
+const entryNav: NavItem[] = [
   {
     id: 'home',
-    label: 'Home',
+    label: '首页',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -28,73 +29,22 @@ const mainNav: NavItem[] = [
     ),
     shortcut: '1',
   },
-  {
-    id: 'studio',
-    label: 'Studio',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-        <line x1="8" y1="21" x2="16" y2="21" />
-        <line x1="12" y1="17" x2="12" y2="21" />
-      </svg>
-    ),
-    shortcut: '2',
-  },
-  {
-    id: 'design-system',
-    label: 'Design System',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="4" />
-        <line x1="4.93" y1="4.93" x2="9.17" y2="9.17" />
-        <line x1="14.83" y1="14.83" x2="19.07" y2="19.07" />
-        <line x1="14.83" y1="9.17" x2="19.07" y2="4.93" />
-        <line x1="4.93" y1="19.07" x2="9.17" y2="14.83" />
-      </svg>
-    ),
-    shortcut: '3',
-  },
-  {
-    id: 'automation',
-    label: 'Automation',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="16 3 21 3 21 8" />
-        <line x1="4" y1="20" x2="21" y2="3" />
-        <polyline points="21 16 21 21 16 21" />
-        <line x1="15" y1="15" x2="21" y2="21" />
-        <line x1="4" y1="4" x2="9" y2="9" />
-      </svg>
-    ),
-    shortcut: '4',
-  },
-  {
-    id: 'craft',
-    label: 'Craft',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-      </svg>
-    ),
-    shortcut: '5',
-  },
 ];
 
-const workNav: NavItem[] = [
+// 内容生产
+const contentNav: NavItem[] = [
   {
     id: 'requests',
-    label: '部门报送信息',
+    label: '部门报送',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="16" y1="13" x2="8" y2="13" />
         <line x1="16" y1="17" x2="8" y2="17" />
-        <polyline points="10 9 9 9 8 9" />
       </svg>
     ),
-    shortcut: '6',
+    shortcut: '2',
   },
   {
     id: 'campaigns',
@@ -105,14 +55,9 @@ const workNav: NavItem[] = [
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
         <line x1="3" y1="10" x2="21" y2="10" />
-        <path d="M8 14h.01" />
-        <path d="M12 14h.01" />
-        <path d="M16 14h.01" />
-        <path d="M8 18h.01" />
-        <path d="M12 18h.01" />
       </svg>
     ),
-    shortcut: '7',
+    shortcut: '3',
   },
   {
     id: 'topics',
@@ -125,7 +70,7 @@ const workNav: NavItem[] = [
         <rect x="3" y="14" width="7" height="7" />
       </svg>
     ),
-    shortcut: '8',
+    shortcut: '4',
   },
   {
     id: 'scripts',
@@ -136,8 +81,12 @@ const workNav: NavItem[] = [
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
       </svg>
     ),
-    shortcut: '9',
+    shortcut: '5',
   },
+];
+
+// 编排与引擎
+const engineNav: NavItem[] = [
   {
     id: 'workflows',
     label: '工作流',
@@ -146,11 +95,49 @@ const workNav: NavItem[] = [
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
       </svg>
     ),
-    shortcut: '0',
+    shortcut: '6',
+  },
+  {
+    id: 'agents',
+    label: 'Agent',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="10" rx="2" />
+        <circle cx="12" cy="5" r="2" />
+        <path d="M12 7v4" />
+      </svg>
+    ),
+    shortcut: '7',
+  },
+  {
+    id: 'skills',
+    label: 'Skill',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
+      </svg>
+    ),
+    shortcut: '8',
+  },
+];
+
+// 知识与数据
+const knowledgeNav: NavItem[] = [
+  {
+    id: 'knowledge',
+    label: '知识库',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      </svg>
+    ),
+    shortcut: '9',
   },
   {
     id: 'analytics',
-    label: '数据看板',
+    label: '数据',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <line x1="18" y1="20" x2="18" y2="10" />
@@ -158,48 +145,11 @@ const workNav: NavItem[] = [
         <line x1="6" y1="20" x2="6" y2="14" />
       </svg>
     ),
-  },
-];
-
-const engineNav: NavItem[] = [
-  {
-    id: 'agents',
-    label: 'Agent 管理',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="11" width="18" height="10" rx="2" />
-        <circle cx="12" cy="5" r="2" />
-        <path d="M12 7v4" />
-        <line x1="8" y1="16" x2="8" y2="16" />
-        <line x1="16" y1="16" x2="16" y2="16" />
-      </svg>
-    ),
-  },
-  {
-    id: 'skills',
-    label: 'Skill 市场',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-        <line x1="7" y1="7" x2="7.01" y2="7" />
-      </svg>
-    ),
-  },
-  {
-    id: 'knowledge',
-    label: 'RAG 知识库',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-        <circle cx="12" cy="10" r="3" />
-        <path d="M12 13v3" />
-      </svg>
-    ),
+    shortcut: '0',
   },
   {
     id: 'connections',
-    label: '外部连接',
+    label: '集成',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -211,217 +161,178 @@ const engineNav: NavItem[] = [
 
 export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse }: SidebarProps) {
   return (
-    <aside
-      className={`flex flex-col border-r transition-all duration-200 ${collapsed ? 'w-[60px]' : 'w-[220px]'}`}
-      style={{ borderColor: '#E8E6E1', backgroundColor: '#1A1A1A' }}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 h-[52px] border-b" style={{ borderColor: '#2A2A2A' }}>
-        <div
-          className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: '#D4A574' }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 19l7-7 3 3-7 7-3-3z" />
-            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-            <path d="M2 2l7.586 7.586" />
-            <circle cx="11" cy="11" r="2" />
-          </svg>
-        </div>
-        {!collapsed && (
-          <div className="flex flex-col min-w-0">
-            <span className="text-[13px] font-semibold text-white truncate">ContentFlow</span>
-            <span className="text-[10px] text-[#888] truncate">内容创作平台</span>
-          </div>
-        )}
-        <button
-          onClick={onToggleCollapse}
-          className="ml-auto p-1 rounded transition-colors"
-          style={{ color: '#888' }}
-          onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#2A2A2A')}
-          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {collapsed ? (
-              <polyline points="9 18 15 12 9 6" />
-            ) : (
-              <polyline points="15 18 9 12 15 6" />
-            )}
-          </svg>
-        </button>
-      </div>
-
-      {/* Main nav */}
-      <div className="flex-1 overflow-y-auto py-3 px-2">
-        {!collapsed && (
-          <div className="px-2 mb-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: '#666' }}>
-              平台
-            </span>
-          </div>
-        )}
-        {mainNav.map((item) => {
-          const isActive = currentView === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onViewChange(item.id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] transition-all duration-150 mb-0.5 group relative ${collapsed ? 'justify-center' : ''}`}
-              style={{
-                backgroundColor: isActive ? '#2A2A2A' : 'transparent',
-                color: isActive ? '#D4A574' : '#AAA',
-              }}
-              onMouseEnter={e => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = '#222';
-                  e.currentTarget.style.color = '#DDD';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#AAA';
-                }
-              }}
-              title={collapsed ? item.label : undefined}
-            >
-              {isActive && (
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r"
-                  style={{ backgroundColor: '#D4A574' }}
-                />
-              )}
-              <span className="flex-shrink-0">{item.icon}</span>
-              {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.shortcut && (
-                <span className="ml-auto text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#666' }}>
-                  {item.shortcut}
-                </span>
-              )}
-            </button>
-          );
-        })}
-
-        {/* Work nav */}
-        {!collapsed && (
-          <div className="px-2 mt-4 mb-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: '#666' }}>
-              工作台
-            </span>
-          </div>
-        )}
-        {collapsed && <div className="my-3 mx-2 border-t" style={{ borderColor: '#2A2A2A' }} />}
-        {workNav.map((item) => {
-          const isActive = currentView === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onViewChange(item.id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] transition-all duration-150 mb-0.5 group relative ${collapsed ? 'justify-center' : ''}`}
-              style={{
-                backgroundColor: isActive ? '#2A2A2A' : 'transparent',
-                color: isActive ? '#D4A574' : '#AAA',
-              }}
-              onMouseEnter={e => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = '#222';
-                  e.currentTarget.style.color = '#DDD';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#AAA';
-                }
-              }}
-              title={collapsed ? item.label : undefined}
-            >
-              {isActive && (
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r"
-                  style={{ backgroundColor: '#D4A574' }}
-                />
-              )}
-              <span className="flex-shrink-0">{item.icon}</span>
-              {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.shortcut && (
-                <span className="ml-auto text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#666' }}>
-                  {item.shortcut}
-                </span>
-              )}
-            </button>
-          );
-        })}
-
-        {/* Engine nav */}
-        {!collapsed && (
-          <div className="px-2 mt-4 mb-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: '#666' }}>
-              核心引擎
-            </span>
-          </div>
-        )}
-        {collapsed && <div className="my-3 mx-2 border-t" style={{ borderColor: '#2A2A2A' }} />}
-        {engineNav.map((item) => {
-          const isActive = currentView === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onViewChange(item.id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] transition-all duration-150 mb-0.5 group relative ${collapsed ? 'justify-center' : ''}`}
-              style={{
-                backgroundColor: isActive ? '#2A2A2A' : 'transparent',
-                color: isActive ? '#D4A574' : '#AAA',
-              }}
-              onMouseEnter={e => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = '#222';
-                  e.currentTarget.style.color = '#DDD';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!isActive) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#AAA';
-                }
-              }}
-              title={collapsed ? item.label : undefined}
-            >
-              {isActive && (
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r"
-                  style={{ backgroundColor: '#D4A574' }}
-                />
-              )}
-              <span className="flex-shrink-0">{item.icon}</span>
-              {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.shortcut && (
-                <span className="ml-auto text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#666' }}>
-                  {item.shortcut}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* User */}
+    <>
+      {/* Mobile overlay */}
       {!collapsed && (
-        <div className="p-3 border-t" style={{ borderColor: '#2A2A2A' }}>
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-medium flex-shrink-0"
-              style={{ backgroundColor: '#D4A574', color: '#1A1A1A' }}
-            >
-              滕
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[12px] text-white truncate">滕紫原</span>
-              <span className="text-[10px] truncate" style={{ color: '#666' }}>总括</span>
-            </div>
-          </div>
-        </div>
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onToggleCollapse}
+        />
       )}
-    </aside>
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed left-0 top-0 h-full bg-[#1A1A1A] border-r border-[#2A2A2A] z-50
+          transition-all duration-300 ease-in-out flex flex-col
+          ${collapsed ? 'w-[60px]' : 'w-[200px]'}
+          lg:translate-x-0 ${collapsed ? 'lg:translate-x-0' : 'lg:translate-x-0'}
+          ${collapsed ? 'translate-x-0' : 'translate-x-0'}
+        `}
+      >
+        {/* Logo */}
+        <div className="h-[52px] flex items-center px-4 border-b border-[#2A2A2A] flex-shrink-0">
+          <div className="w-7 h-7 rounded-md bg-gradient-to-br from-[#D4A574] to-[#C17B3E] flex items-center justify-center flex-shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19l7-7 3 3-7 7-3-3z" />
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+              <path d="M2 2l7.586 7.586" />
+              <circle cx="11" cy="11" r="2" />
+            </svg>
+          </div>
+          {!collapsed && (
+            <span className="ml-2.5 font-serif text-[13px] font-semibold text-white tracking-tight">
+              ECCP
+            </span>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 py-3 overflow-y-auto">
+          {/* 入口 */}
+          <div className="mb-2">
+            {!collapsed && (
+              <div className="px-4 mb-1">
+                <span className="text-[10px] font-medium text-neutral-600 uppercase tracking-wider">入口</span>
+              </div>
+            )}
+            {entryNav.map((item) => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                isActive={currentView === item.id}
+                onClick={() => onViewChange(item.id)}
+                collapsed={collapsed}
+              />
+            ))}
+          </div>
+
+          {/* 内容生产 */}
+          <div className="mb-2">
+            {!collapsed && (
+              <div className="px-4 mb-1 mt-3">
+                <span className="text-[10px] font-medium text-neutral-600 uppercase tracking-wider">内容</span>
+              </div>
+            )}
+            {contentNav.map((item) => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                isActive={currentView === item.id}
+                onClick={() => onViewChange(item.id)}
+                collapsed={collapsed}
+              />
+            ))}
+          </div>
+
+          {/* 编排与引擎 */}
+          <div className="mb-2">
+            {!collapsed && (
+              <div className="px-4 mb-1 mt-3">
+                <span className="text-[10px] font-medium text-neutral-600 uppercase tracking-wider">引擎</span>
+              </div>
+            )}
+            {engineNav.map((item) => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                isActive={currentView === item.id}
+                onClick={() => onViewChange(item.id)}
+                collapsed={collapsed}
+              />
+            ))}
+          </div>
+
+          {/* 知识与数据 */}
+          <div className="mb-2">
+            {!collapsed && (
+              <div className="px-4 mb-1 mt-3">
+                <span className="text-[10px] font-medium text-neutral-600 uppercase tracking-wider">资产</span>
+              </div>
+            )}
+            {knowledgeNav.map((item) => (
+              <SidebarItem
+                key={item.id}
+                item={item}
+                isActive={currentView === item.id}
+                onClick={() => onViewChange(item.id)}
+                collapsed={collapsed}
+              />
+            ))}
+          </div>
+        </nav>
+
+        {/* Footer */}
+        <div className="p-3 border-t border-[#2A2A2A] flex-shrink-0">
+          <button
+            onClick={onToggleCollapse}
+            className="w-full flex items-center justify-center p-2 rounded-md text-neutral-500 hover:text-white hover:bg-[#2A2A2A] transition-colors"
+            title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              {collapsed ? (
+                <>
+                  <polyline points="9 18 15 12 9 6" />
+                </>
+              ) : (
+                <>
+                  <polyline points="15 18 9 12 15 6" />
+                </>
+              )}
+            </svg>
+            {!collapsed && <span className="ml-2 text-xs">收起</span>}
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+interface SidebarItemProps {
+  item: NavItem;
+  isActive: boolean;
+  onClick: () => void;
+  collapsed: boolean;
+}
+
+function SidebarItem({ item, isActive, onClick, collapsed }: SidebarItemProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        w-full flex items-center px-3 py-1.5 mx-2 rounded-md text-[13px] transition-all duration-200
+        ${collapsed ? 'justify-center mx-1.5 px-0' : ''}
+        ${isActive
+          ? 'bg-[#2A2A2A] text-white'
+          : 'text-neutral-400 hover:text-white hover:bg-[#2A2A2A]/50'
+        }
+      `}
+      title={collapsed ? item.label : undefined}
+    >
+      <span className={`flex-shrink-0 ${isActive ? 'text-[#D4A574]' : ''}`}>
+        {item.icon}
+      </span>
+      {!collapsed && (
+        <>
+          <span className="ml-2.5 font-medium">{item.label}</span>
+          {item.shortcut && (
+            <span className="ml-auto text-[10px] text-neutral-600 font-mono">{item.shortcut}</span>
+          )}
+        </>
+      )}
+      {isActive && !collapsed && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-[#D4A574] rounded-r" />
+      )}
+    </button>
   );
 }
