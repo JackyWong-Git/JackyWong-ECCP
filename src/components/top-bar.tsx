@@ -9,11 +9,11 @@ interface TopBarProps {
 }
 
 const viewLabels: Record<ViewType, string> = {
-  topics: '选题看板',
-  scripts: '脚本编辑器',
-  workflows: '工作流编排',
-  knowledge: '知识库',
-  analytics: '数据看板',
+  submission: '素材上报',
+  coordination: '内容调度',
+  publishing: '渠道发布',
+  knowledge: '素材知识库',
+  feedback: '数据回流',
 };
 
 interface CommandItem {
@@ -36,32 +36,32 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
 
   const commands: CommandItem[] = [
     {
-      id: 'nav-topics', label: '前往选题看板', desc: '切换到选题管理视图', icon: <IconGrid />,
-      action: () => { onViewChange('topics'); setShowCommand(false); },
+      id: 'nav-coordination', label: '前往内容调度', desc: '切换到中台调度看板', icon: <IconGrid />,
+      action: () => { onViewChange('coordination'); setShowCommand(false); },
     },
     {
-      id: 'nav-scripts', label: '前往脚本编辑器', desc: '切换到脚本编辑器', icon: <IconEdit />,
-      action: () => { onViewChange('scripts'); setShowCommand(false); },
+      id: 'nav-submission', label: '前往素材上报', desc: '切换到素材上报入口', icon: <IconPlus />,
+      action: () => { onViewChange('submission'); setShowCommand(false); },
     },
     {
-      id: 'nav-workflows', label: '前往工作流编排', desc: '切换到工作流视图', icon: <IconTimeline />,
-      action: () => { onViewChange('workflows'); setShowCommand(false); },
+      id: 'nav-publishing', label: '前往渠道发布', desc: '切换到渠道发布管理', icon: <IconTimeline />,
+      action: () => { onViewChange('publishing'); setShowCommand(false); },
     },
     {
-      id: 'nav-knowledge', label: '前往知识库', desc: '切换到知识库视图', icon: <IconBook />,
+      id: 'nav-knowledge', label: '前往素材知识库', desc: '切换到素材知识库', icon: <IconBook />,
       action: () => { onViewChange('knowledge'); setShowCommand(false); },
     },
     {
-      id: 'nav-analytics', label: '前往数据看板', desc: '切换到数据分析', icon: <IconGrid />,
-      action: () => { onViewChange('analytics'); setShowCommand(false); },
+      id: 'nav-feedback', label: '前往数据回流', desc: '切换到数据分析', icon: <IconGrid />,
+      action: () => { onViewChange('feedback'); setShowCommand(false); },
     },
     {
-      id: 'new-article', label: '新建文章', desc: '创建一篇新内容', icon: <IconPlus />,
-      action: () => { onViewChange('scripts'); setShowCommand(false); },
+      id: 'new-material', label: '上报素材', desc: '提交一条新素材', icon: <IconPlus />,
+      action: () => { onViewChange('submission'); setShowCommand(false); },
     },
     {
       id: 'new-topic', label: '新建选题', desc: '添加新选题', icon: <IconFilm />,
-      action: () => { onViewChange('topics'); setShowCommand(false); },
+      action: () => { onViewChange('coordination'); setShowCommand(false); },
     },
   ];
 

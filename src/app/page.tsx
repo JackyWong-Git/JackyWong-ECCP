@@ -4,32 +4,32 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { TopBar } from '@/components/top-bar';
 import { ToastContainer } from '@/components/toast';
-import { TopicsBoard } from '@/components/topics-board';
-import { ScriptEditor } from '@/components/script-editor';
-import { WorkflowBuilder } from '@/components/workflow-builder';
-import { KnowledgeBase } from '@/components/knowledge-base';
-import { AnalyticsDashboard } from '@/components/analytics-dashboard';
+import { MaterialSubmission } from '@/components/material-submission';
+import { ContentCoordination } from '@/components/content-coordination';
+import { ChannelPublishing } from '@/components/channel-publishing';
+import { MaterialKnowledge } from '@/components/material-knowledge';
+import { DataFeedback } from '@/components/data-feedback';
 
-export type ViewType = 'topics' | 'scripts' | 'workflows' | 'knowledge' | 'analytics';
+export type ViewType = 'submission' | 'coordination' | 'publishing' | 'knowledge' | 'feedback';
 
 export default function Home() {
-  const [currentView, setCurrentView] = useState<ViewType>('topics');
+  const [currentView, setCurrentView] = useState<ViewType>('coordination');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const renderView = () => {
     switch (currentView) {
-      case 'topics':
-        return <TopicsBoard />;
-      case 'scripts':
-        return <ScriptEditor />;
-      case 'workflows':
-        return <WorkflowBuilder />;
+      case 'submission':
+        return <MaterialSubmission />;
+      case 'coordination':
+        return <ContentCoordination />;
+      case 'publishing':
+        return <ChannelPublishing />;
       case 'knowledge':
-        return <KnowledgeBase />;
-      case 'analytics':
-        return <AnalyticsDashboard />;
+        return <MaterialKnowledge />;
+      case 'feedback':
+        return <DataFeedback />;
       default:
-        return <TopicsBoard />;
+        return <ContentCoordination />;
     }
   };
 
