@@ -15,6 +15,10 @@ import { TopicsBoard } from '@/components/topics-board';
 import { ScriptEditor } from '@/components/script-editor';
 import { WorkflowBuilder } from '@/components/workflow-builder';
 import { AnalyticsDashboard } from '@/components/analytics-dashboard';
+import { AgentManagement } from '@/components/agent-management';
+import { SkillMarketplace } from '@/components/skill-marketplace';
+import { RAGKnowledgeBase } from '@/components/rag-knowledge-base';
+import { ExternalConnections } from '@/components/external-connections';
 
 export type ViewType =
   | 'home'
@@ -27,7 +31,11 @@ export type ViewType =
   | 'topics'
   | 'scripts'
   | 'workflows'
-  | 'analytics';
+  | 'analytics'
+  | 'agents'
+  | 'skills'
+  | 'knowledge'
+  | 'connections';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<ViewType>('home');
@@ -57,6 +65,14 @@ export default function Home() {
         return <WorkflowBuilder />;
       case 'analytics':
         return <AnalyticsDashboard />;
+      case 'agents':
+        return <AgentManagement />;
+      case 'skills':
+        return <SkillMarketplace />;
+      case 'knowledge':
+        return <RAGKnowledgeBase />;
+      case 'connections':
+        return <ExternalConnections />;
       default:
         return <HomeComposer />;
     }

@@ -20,6 +20,10 @@ const viewLabels: Record<ViewType, string> = {
   scripts: '脚本编辑',
   workflows: '工作流',
   analytics: '数据看板',
+  agents: 'Agent 管理',
+  skills: 'Skill 市场',
+  knowledge: 'RAG 知识库',
+  connections: '外部连接',
 };
 
 interface CommandItem {
