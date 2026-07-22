@@ -1,0 +1,1 @@
+"""ECCP FastAPI business service."""

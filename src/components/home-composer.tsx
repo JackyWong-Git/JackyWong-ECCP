@@ -23,7 +23,8 @@ import {
   X,
 } from 'lucide-react';
 import { type ChangeEvent, type ComponentType, useEffect, useRef, useState } from 'react';
-import { type ViewType } from '@/app/page';
+import { type ViewType } from '@/lib/access-control';
+import { useAuth } from '@/components/auth-guard';
 import { showToast } from './toast';
 
 interface HomeComposerProps {
@@ -81,11 +82,11 @@ const PROJECTS = [
 const SCHEDULES = [
   { time: '10:30', title: '月度内容例会', detail: '3 号会议室 · 6 人' },
   { time: '14:00', title: '员工故事采访', detail: '线上会议 · 45 分钟' },
-  { time: '16:30', title: '传播项目周检', detail: '项目空间 · 4 人' },
+  { time: '16:30', title: '活动传播周检', detail: '活动宣传 · 4 人' },
 ];
 
 const RECENT_FILES = [
-  { name: '22周年传播方案 V3.docx', detail: '刚刚更新 · 项目文件', type: 'DOC' },
+  { name: '22周年传播方案 V3.docx', detail: '刚刚更新 · 活动文件', type: 'DOC' },
   { name: '员工采访素材汇总.pdf', detail: '昨天更新 · 团队空间', type: 'PDF' },
   { name: '7月内容排期.xlsx', detail: '2 天前更新 · 我的文件', type: 'XLS' },
 ];
@@ -93,6 +94,7 @@ const RECENT_FILES = [
 const STORAGE_KEY = 'eccp-workspace-composer';
 
 export function HomeComposer({ onNavigate }: HomeComposerProps) {
+  const { user } = useAuth();
   const [brief, setBrief] = useState('');
   const [knowledgeEnabled, setKnowledgeEnabled] = useState(true);
   const [webEnabled, setWebEnabled] = useState(false);
@@ -181,7 +183,7 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
         <section className="workspace-reveal">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="text-[14px] font-semibold text-[#5267E8]">下午好，彬彬</p>
+              <p className="text-[14px] font-semibold text-[#5267E8]">下午好，{user.displayName.slice(-2)}</p>
               <h2 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[#17232D] sm:text-[32px] lg:text-[36px]">
                 今天，想让 AI 帮你完成什么？
               </h2>
@@ -192,7 +194,7 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
               onClick={() => onNavigate('tasks')}
               className="w-fit rounded-xl border border-[#DDE5EA] bg-white px-3.5 py-2 text-[11px] font-medium text-[#60707D] shadow-sm transition-colors hover:border-[#BAC7F5] hover:text-[#5267E8]"
             >
-              今天有 3 项任务待处理，1 个项目本周到期
+              今天有 3 项任务待处理，1 个活动本周到期
             </button>
           </div>
 
@@ -247,19 +249,19 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
 
                 <div className="mx-0.5 hidden h-5 w-px bg-[#E3E9ED] lg:block" />
 
-                <button type="button" role="switch" aria-checked={knowledgeEnabled} onClick={() => setKnowledgeEnabled(value => !value)} className="flex h-9 items-center gap-2 rounded-xl px-2 text-[11px] font-medium text-[#60707D] transition-colors hover:bg-[#F4F7FA]">
+                <button type="button" role="switch" aria-label="知识库" aria-checked={knowledgeEnabled} onClick={() => setKnowledgeEnabled(value => !value)} className={`flex h-9 shrink-0 items-center gap-2 rounded-xl border px-2.5 text-[11px] font-medium transition-all ${knowledgeEnabled ? 'border-[#D9DFFF] bg-[#F4F5FF] text-[#4054C9]' : 'border-transparent text-[#60707D] hover:bg-[#F4F7FA]'}`}>
                   <Database className="h-4 w-4 text-[#5267E8]" strokeWidth={1.8} />
-                  <span className="hidden lg:inline">知识库</span>
-                  <span className={`relative h-4 w-7 rounded-full transition-colors ${knowledgeEnabled ? 'bg-[#5267E8]' : 'bg-[#CFD8DE]'}`}>
-                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${knowledgeEnabled ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                  <span className="hidden sm:inline">知识库</span>
+                  <span aria-hidden="true" className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 shadow-inner transition-colors ${knowledgeEnabled ? 'bg-[#5267E8]' : 'bg-[#CBD5DC]'}`}>
+                    <span className={`block h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(23,35,45,0.28)] transition-transform duration-200 ${knowledgeEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
                   </span>
                 </button>
 
-                <button type="button" role="switch" aria-checked={webEnabled} onClick={() => setWebEnabled(value => !value)} className="flex h-9 items-center gap-2 rounded-xl px-2 text-[11px] font-medium text-[#60707D] transition-colors hover:bg-[#F4F7FA]">
+                <button type="button" role="switch" aria-label="联网搜索" aria-checked={webEnabled} onClick={() => setWebEnabled(value => !value)} className={`flex h-9 shrink-0 items-center gap-2 rounded-xl border px-2.5 text-[11px] font-medium transition-all ${webEnabled ? 'border-[#CDE8EF] bg-[#EFF9FB] text-[#267E98]' : 'border-transparent text-[#60707D] hover:bg-[#F4F7FA]'}`}>
                   <Globe2 className="h-4 w-4 text-[#3FA3C2]" strokeWidth={1.8} />
-                  <span className="hidden lg:inline">联网搜索</span>
-                  <span className={`relative h-4 w-7 rounded-full transition-colors ${webEnabled ? 'bg-[#4AA9C6]' : 'bg-[#CFD8DE]'}`}>
-                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${webEnabled ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                  <span className="hidden sm:inline">联网搜索</span>
+                  <span aria-hidden="true" className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 shadow-inner transition-colors ${webEnabled ? 'bg-[#36A6C4]' : 'bg-[#CBD5DC]'}`}>
+                    <span className={`block h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(23,35,45,0.28)] transition-transform duration-200 ${webEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
                   </span>
                 </button>
 
@@ -366,10 +368,10 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
             <div className="surface-card p-4 sm:p-5">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#263640]">项目进度</h3>
-                  <p className="mt-1 text-[10px] text-[#8A99A4]">1 个项目将在本周到期</p>
+                  <h3 className="text-[15px] font-semibold text-[#263640]">活动进度</h3>
+                  <p className="mt-1 text-[10px] text-[#8A99A4]">1 个活动将在本周到期</p>
                 </div>
-                <button type="button" onClick={() => onNavigate('campaigns')} className="text-[11px] font-medium text-[#5267E8]">项目空间</button>
+                <button type="button" onClick={() => onNavigate('campaigns')} className="text-[11px] font-medium text-[#5267E8]">活动宣传</button>
               </div>
               <div className="space-y-4">
                 {PROJECTS.map(project => (

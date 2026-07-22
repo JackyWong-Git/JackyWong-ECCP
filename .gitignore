@@ -6,6 +6,8 @@ dist
 __pycache__/
 *.pyc
 .venv/*
+backend/db.sqlite3
+backend/staticfiles/
 *.o
 *.a
 /vendor
@@ -111,6 +113,8 @@ coverage/
 .env.development.local
 .env.test.local
 .env.production.local
+.eccp-data/
+backend/eccp_api.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

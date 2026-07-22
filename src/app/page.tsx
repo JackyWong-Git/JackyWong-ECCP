@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { TopBar } from '@/components/top-bar';
-import { ToastContainer } from '@/components/toast';
+import { showToast, ToastContainer } from '@/components/toast';
 import { HomeComposer } from '@/components/home-composer';
 import { StudioMultiArtifact } from '@/components/studio-multi-artifact';
 import { DesignSystemManager } from '@/components/design-system-manager';
@@ -21,27 +21,19 @@ import { RAGKnowledgeBase } from '@/components/rag-knowledge-base';
 import { ExternalConnections } from '@/components/external-connections';
 import { AssistantWorkspace } from '@/components/assistant-workspace';
 import { TaskCenter } from '@/components/task-center';
-
-export type ViewType =
-  | 'home'
-  | 'assistant'
-  | 'tasks'
-  | 'studio'
-  | 'design-system'
-  | 'automation'
-  | 'craft'
-  | 'requests'
-  | 'campaigns'
-  | 'topics'
-  | 'scripts'
-  | 'workflows'
-  | 'analytics'
-  | 'agents'
-  | 'skills'
-  | 'knowledge'
-  | 'connections';
+import { AuthGuard, useAuth } from '@/components/auth-guard';
+import { canAccessView, type ViewType } from '@/lib/access-control';
 
 export default function Home() {
+  return (
+    <AuthGuard>
+      <AuthenticatedWorkspace />
+    </AuthGuard>
+  );
+}
+
+function AuthenticatedWorkspace() {
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
@@ -54,14 +46,22 @@ export default function Home() {
     return () => desktopQuery.removeEventListener('change', syncSidebar);
   }, []);
 
+  const navigateTo = (view: ViewType) => {
+    if (!canAccessView(user.permissions, view)) {
+      showToast('当前账号没有访问该功能的权限', 'info');
+      return;
+    }
+    setCurrentView(view);
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'home':
-        return <HomeComposer onNavigate={setCurrentView} />;
+        return <HomeComposer onNavigate={navigateTo} />;
       case 'assistant':
-        return <AssistantWorkspace onNavigate={setCurrentView} />;
+        return <AssistantWorkspace onNavigate={navigateTo} />;
       case 'tasks':
-        return <TaskCenter onNavigate={setCurrentView} />;
+        return <TaskCenter onNavigate={navigateTo} />;
       case 'studio':
         return <StudioMultiArtifact />;
       case 'design-system':
@@ -91,25 +91,25 @@ export default function Home() {
       case 'connections':
         return <ExternalConnections />;
       default:
-        return <HomeComposer onNavigate={setCurrentView} />;
+        return <HomeComposer onNavigate={navigateTo} />;
     }
   };
 
   return (
     <div className="flex h-dvh min-h-0 overflow-hidden bg-[#F2F6F8]">
-      <Sidebar
-        currentView={currentView}
-        onViewChange={setCurrentView}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <TopBar currentView={currentView} onViewChange={setCurrentView} />
-        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
-          {renderView()}
-        </main>
-      </div>
-      <ToastContainer />
+        <Sidebar
+          currentView={currentView}
+          onViewChange={navigateTo}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <TopBar currentView={currentView} onViewChange={navigateTo} />
+          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+            {renderView()}
+          </main>
+        </div>
+        <ToastContainer />
     </div>
   );
 }

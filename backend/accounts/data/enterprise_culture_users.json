@@ -1,0 +1,15 @@
+{
+  "source": "问卷调研工具权限名单.xlsx / Sheet1 / 已确认权限人员（序号 122-129）",
+  "department": "人事总务部",
+  "section": "人事总务部员工关系管理科",
+  "users": [
+    {"source_row": 124, "name": "郭晓鹏", "employee_id": "0081306", "username": "guoxiaopeng", "team": "人事总务部员工关系管理科企业文化系", "job_title": "TM", "scope": "all", "role": "member"},
+    {"source_row": 125, "name": "熊臣坤", "employee_id": "0691901", "username": "xiongchenkun", "team": "人事总务部员工关系管理科企业文化系", "job_title": "TM", "scope": "all", "role": "member"},
+    {"source_row": 126, "name": "王彬彬", "employee_id": "6210968", "username": "binbin_wang", "team": "人事总务部员工关系管理科企业文化系", "job_title": "TM", "scope": "all", "role": "super_admin"},
+    {"source_row": 127, "name": "樊莉芳", "employee_id": "6240109", "username": "fanlifang", "team": "人事总务部员工关系管理科企业文化系", "job_title": "科员", "scope": "all", "role": "member"},
+    {"source_row": 128, "name": "蔡雯欣", "employee_id": "6230303", "username": "caiwenxin", "team": "人事总务部员工关系管理科企业文化系", "job_title": "科员", "scope": "all", "role": "member"},
+    {"source_row": 129, "name": "滕紫原", "employee_id": "6213692", "username": "tengziyuan", "team": "人事总务部员工关系管理科企业文化系", "job_title": "科员", "scope": "all", "role": "member"},
+    {"source_row": 130, "name": "李志娟", "employee_id": "0040402", "username": "lizhijuan", "team": "", "job_title": "科长", "scope": "all", "role": "member"},
+    {"source_row": 131, "name": "徐婷婷", "employee_id": "0580401", "username": "xutingting", "team": "", "job_title": "项目经理", "scope": "all", "role": "member"}
+  ]
+}

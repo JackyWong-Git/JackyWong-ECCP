@@ -8,10 +8,9 @@ import {
   ChevronRight,
   FilePenLine,
   Files,
-  FolderKanban,
+  Megaphone,
   LayoutDashboard,
   ListTodo,
-  MessageSquareText,
   PanelLeft,
   PlugZap,
   Puzzle,
@@ -20,7 +19,8 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { type ComponentType } from 'react';
-import { type ViewType } from '@/app/page';
+import { canAccessView, type ViewType } from '@/lib/access-control';
+import { useAuth } from '@/components/auth-guard';
 
 interface SidebarProps {
   currentView: ViewType;
@@ -53,7 +53,7 @@ const navGroups: NavGroup[] = [
   {
     label: '协同执行',
     items: [
-      { id: 'campaigns', label: '项目空间', icon: FolderKanban, badge: '2' },
+      { id: 'campaigns', label: '活动宣传', icon: Megaphone, badge: '2' },
       { id: 'tasks', label: '任务中心', icon: ListTodo, badge: '3' },
       { id: 'knowledge', label: '文件与知识库', icon: Files },
       { id: 'requests', label: '协作与报送', icon: UsersRound },
@@ -72,7 +72,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'connections', label: '连接管理', icon: PlugZap },
       { id: 'agents', label: 'Agent 管理', icon: Bot },
-      { id: 'skills', label: 'Skill 市场', icon: Puzzle },
+      { id: 'skills', label: 'Skill 能力中心', icon: Puzzle },
       { id: 'workflows', label: '工作流编排', icon: ListTodo },
       { id: 'design-system', label: '系统设置', icon: Settings2 },
     ],
@@ -80,6 +80,10 @@ const navGroups: NavGroup[] = [
 ];
 
 export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse }: SidebarProps) {
+  const { user } = useAuth();
+  const visibleGroups = navGroups
+    .map(group => ({ ...group, items: group.items.filter(item => canAccessView(user.permissions, item.id)) }))
+    .filter(group => group.items.length > 0);
   const handleNavigate = (view: ViewType) => {
     onViewChange(view);
     if (window.innerWidth < 1024) onToggleCollapse();
@@ -121,7 +125,7 @@ export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse
         </div>
 
         <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-4" aria-label="主导航">
-          {navGroups.map((group, groupIndex) => (
+          {visibleGroups.map((group, groupIndex) => (
             <div key={group.label} className={groupIndex === 0 ? '' : 'mt-5'}>
               {!collapsed ? (
                 <div className="mb-1.5 px-2 text-[10px] font-semibold tracking-[0.08em] text-[#9AA8B3]">
@@ -179,10 +183,10 @@ export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse
               type="button"
               className="mb-2 flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-[#EFF4F7]"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#DDE4FF] text-[12px] font-semibold text-[#4357C8]">彬彬</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#DDE4FF] text-[12px] font-semibold text-[#4357C8]">{user.displayName.slice(-2)}</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12px] font-semibold text-[#263640]">彬彬</span>
-                <span className="block truncate text-[10px] text-[#8999A5]">企业文化中心</span>
+                <span className="block truncate text-[12px] font-semibold text-[#263640]">{user.displayName}</span>
+                <span className="block truncate text-[10px] text-[#8999A5]">{user.organizationLabel || user.department || 'ECCP 成员'}</span>
               </span>
               <ChevronRight className="h-4 w-4 text-[#9AA8B3]" strokeWidth={1.8} />
             </button>

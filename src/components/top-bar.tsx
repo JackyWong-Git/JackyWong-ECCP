@@ -7,7 +7,7 @@ import {
   ChevronDown,
   CircleHelp,
   FilePenLine,
-  FolderKanban,
+  Megaphone,
   LayoutDashboard,
   ListTodo,
   PlugZap,
@@ -16,7 +16,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { type ComponentType, useDeferredValue, useEffect, useRef, useState } from 'react';
-import { type ViewType } from '@/app/page';
+import { canAccessView, type ViewType } from '@/lib/access-control';
+import { useAuth } from '@/components/auth-guard';
 import { showToast } from './toast';
 
 interface TopBarProps {
@@ -33,13 +34,13 @@ const viewLabels: Record<ViewType, string> = {
   automation: '自动化',
   craft: '内容规范',
   requests: '协作与报送',
-  campaigns: '项目空间',
+  campaigns: '活动宣传',
   topics: '选题中心',
   scripts: '我的作品',
   workflows: '工作流编排',
   analytics: '数据概览',
   agents: 'Agent 管理',
-  skills: 'Skill 市场',
+  skills: 'Skill 能力中心',
   knowledge: '文件与知识库',
   connections: '连接管理',
 };
@@ -56,22 +57,23 @@ const commandDefinitions: CommandDefinition[] = [
   { id: 'workspace', label: '前往工作台', description: '开始新的 AI 工作任务', view: 'home', icon: LayoutDashboard },
   { id: 'assistant', label: '打开 AI 助手', description: '查知识、分析内容或继续对话', view: 'assistant', icon: Bot },
   { id: 'create', label: '开始智能创作', description: '文案、图片、视频和演示文稿', view: 'studio', icon: Sparkles },
-  { id: 'project', label: '查看项目空间', description: '跟进项目进度、文件和成果', view: 'campaigns', icon: FolderKanban },
+  { id: 'project', label: '查看活动宣传', description: '跟进活动节奏、内容物料和发布成果', view: 'campaigns', icon: Megaphone },
   { id: 'tasks', label: '查看任务中心', description: '处理今日任务与待确认事项', view: 'tasks', icon: ListTodo },
   { id: 'works', label: '打开我的作品', description: '查看草稿、待确认与已发布内容', view: 'scripts', icon: FilePenLine },
   { id: 'analytics', label: '查看数据概览', description: '了解内容表现与工作效率', view: 'analytics', icon: BarChart3 },
   { id: 'connections', label: '管理外部连接', description: '配置平台、模型、数据源和工具', view: 'connections', icon: PlugZap },
   { id: 'agents', label: '管理 Agent', description: '配置角色、模型、Skill 与知识库', view: 'agents', icon: Bot },
-  { id: 'skills', label: '打开 Skill 市场', description: '安装或配置 Agent 可调用的能力', view: 'skills', icon: Puzzle },
+  { id: 'skills', label: '打开 Skill 能力中心', description: '发现、检查并绑定 Agent 可调用的能力', view: 'skills', icon: Puzzle },
 ];
 
 const notifications = [
   { title: '会议纪要待确认', detail: '“7 月内容例会”已生成 4 个行动项', time: '5 分钟前' },
-  { title: '项目节点临近', detail: '22 周年传播项目将在本周五到期', time: '28 分钟前' },
+  { title: '活动节点临近', detail: '22 周年文化传播活动将在本周五到期', time: '28 分钟前' },
   { title: 'AI 任务已完成', detail: '员工故事初稿已生成，可继续编辑', time: '1 小时前' },
 ];
 
 export function TopBar({ currentView, onViewChange }: TopBarProps) {
+  const { user } = useAuth();
   const [showCommand, setShowCommand] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [query, setQuery] = useState('');
@@ -81,6 +83,7 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredCommands = commandDefinitions.filter(command => {
+    if (!canAccessView(user.permissions, command.view)) return false;
     if (!deferredQuery) return true;
     return `${command.label} ${command.description}`.toLocaleLowerCase().includes(deferredQuery);
   });
@@ -147,7 +150,7 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
           className="absolute left-1/2 hidden h-10 w-[min(38vw,460px)] -translate-x-1/2 items-center gap-2 rounded-xl border border-[#E1E8ED] bg-[#F7F9FC] px-3 text-left text-[12px] text-[#8B9AA6] transition-colors hover:border-[#C8D4DD] hover:bg-white lg:flex"
         >
           <Search className="h-4 w-4" strokeWidth={1.8} />
-          <span className="flex-1">搜索对话、文件、项目和任务</span>
+          <span className="flex-1">搜索对话、文件、活动和任务</span>
           <kbd className="rounded-md border border-[#DDE5EA] bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#84939E]">⌘K</kbd>
         </button>
 
@@ -216,7 +219,7 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
           </button>
 
           <button type="button" className="ml-1 flex items-center gap-1.5 rounded-xl p-1 transition-colors hover:bg-[#F1F5F8]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#DCE4FF] text-[11px] font-semibold text-[#4256C5]">彬</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#DCE4FF] text-[11px] font-semibold text-[#4256C5]">{user.displayName.slice(-1)}</span>
             <ChevronDown className="hidden h-3.5 w-3.5 text-[#83929D] sm:block" />
           </button>
         </div>

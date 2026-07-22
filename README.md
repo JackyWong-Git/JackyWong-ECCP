@@ -1,18 +1,70 @@
 # projects
 
-这是一个基于 [Next.js 16](https://nextjs.org) + [shadcn/ui](https://ui.shadcn.com) 的全栈应用项目，由扣子编程 CLI 创建。
+ECCP 采用 Next.js + FastAPI + PostgreSQL/pgvector + Redis + 对象存储架构。Django 暂时作为独立身份与权限服务，保留已确认的企业文化相关账号和服务端 Session。
 
 ## 快速开始
 
 ### 启动开发服务器
 
 ```bash
-coze dev
+pnpm dev:all
 ```
 
-启动后，在浏览器中打开 [http://localhost:5000](http://localhost:5000) 查看应用。
+该命令会同时启动 Django 认证、FastAPI 业务服务与 Next.js 工作台：
+
+- 登录入口：[http://localhost:8000/accounts/login/](http://localhost:8000/accounts/login/)
+- ECCP 工作台：[http://localhost:5000](http://localhost:5000)
+- FastAPI 文档：[http://localhost:8100/docs](http://localhost:8100/docs)
+
+企业文化系初始账号通过 Django 管理命令从审核后的名单数据导入。普通成员首次使用姓名拼音和工号初始密码登录，并会被要求立即设置新密码。
 
 开发服务器支持热更新，修改代码后页面会自动刷新。
+
+### Django 身份认证
+
+Django 负责账号密码校验、CSRF 防护和服务端 Session；Next.js 只负责工作台界面，并通过 `/api/auth/session` 验证登录状态。未登录访问工作台会跳转到 Django 登录页面，成功后返回原页面。
+
+```bash
+# 只启动认证服务
+pnpm dev:auth
+
+# 运行认证测试
+pnpm test:auth
+
+# 首次导入企业文化系权限账号；管理员密码必须通过环境变量注入
+ECCP_SUPERUSER_PASSWORD='replace-with-secret' .venv/bin/python manage.py import_culture_users
+```
+
+阿里云生产环境建议在同一 HTTPS 域名下反向代理：`/accounts/*`、`/api/auth/*` 指向 Django，其余请求指向 Next.js。生产环境必须设置随机 `DJANGO_SECRET_KEY`、`DJANGO_SECURE_COOKIES=1`，并将 SQLite 替换为 PostgreSQL。
+
+### FastAPI、pgvector、Redis 与对象存储
+
+FastAPI 承载知识库、RAG、AI 和后续自动化业务。浏览器不会直连 FastAPI：Next.js 先向 Django 校验 Session，再用短时 HMAC 身份头访问内部 API，避免客户端伪造工号或权限。
+
+无 Docker 的本地开发默认使用 SQLite、本地对象目录和进程内索引任务，便于快速调试。正式联调与生产架构使用：
+
+```bash
+# 启动 PostgreSQL/pgvector、Redis、MinIO、FastAPI 和索引 Worker
+pnpm infra:up
+
+# 查看服务
+curl http://localhost:8100/health
+open http://localhost:9001
+
+# 停止容器，保留数据卷
+pnpm infra:down
+```
+
+文件上传后先写入对象存储，再把索引任务放入 Redis；Worker 负责解析 PDF、DOCX、XLSX、Markdown、文本、CSV 和 JSON，分块并将向量写入 pgvector。开发环境的 `local_hash` 只用于验证链路，生产必须配置兼容 `/embeddings` 的向量模型服务。
+
+生产迁移由 Alembic 管理：
+
+```bash
+ECCP_API_DATABASE_URL='postgresql+asyncpg://...' \
+  .venv/bin/alembic -c services/api/alembic.ini upgrade head
+```
+
+关键安全要求：`ECCP_INTERNAL_AUTH_SECRET` 与 `ECCP_API_INTERNAL_AUTH_SECRET` 必须使用同一条长随机密钥，且 FastAPI 端口只开放给内网或反向代理。
 
 ### 构建生产版本
 

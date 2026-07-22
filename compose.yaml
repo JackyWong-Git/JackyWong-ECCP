@@ -1,0 +1,88 @@
+name: eccp
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: eccp
+      POSTGRES_USER: eccp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eccp-local-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - eccp_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eccp -d eccp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - eccp_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-eccp}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-eccp-local-password}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - eccp_minio:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: sh -c "alembic -c alembic.ini upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8100"
+    environment: &api-environment
+      ECCP_API_ENVIRONMENT: production
+      ECCP_API_DATABASE_URL: postgresql+asyncpg://eccp:${POSTGRES_PASSWORD:-eccp-local-password}@postgres:5432/eccp
+      ECCP_API_AUTO_CREATE_SCHEMA: "0"
+      ECCP_API_REDIS_URL: redis://redis:6379/0
+      ECCP_API_INTERNAL_AUTH_SECRET: ${ECCP_INTERNAL_AUTH_SECRET:-replace-this-in-production}
+      ECCP_API_STORAGE_BACKEND: s3
+      ECCP_API_S3_ENDPOINT_URL: http://minio:9000
+      ECCP_API_S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-eccp}
+      ECCP_API_S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-eccp-local-password}
+      ECCP_API_S3_BUCKET: eccp-documents
+      ECCP_API_EMBEDDING_PROVIDER: ${ECCP_API_EMBEDDING_PROVIDER:-local_hash}
+      ECCP_API_EMBEDDING_API_URL: ${ECCP_API_EMBEDDING_API_URL:-}
+      ECCP_API_EMBEDDING_API_KEY: ${ECCP_API_EMBEDDING_API_KEY:-}
+      ECCP_API_EMBEDDING_MODEL: ${ECCP_API_EMBEDDING_MODEL:-text-embedding-3-small}
+    ports:
+      - "8100:8100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    command: python -m app.worker
+    environment: *api-environment
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  eccp_postgres:
+  eccp_redis:
+  eccp_minio:

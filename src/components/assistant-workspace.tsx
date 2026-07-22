@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useDeferredValue, useRef, useState } from 'react';
-import { type ViewType } from '@/app/page';
+import { type ViewType } from '@/lib/access-control';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { showToast } from './toast';
 

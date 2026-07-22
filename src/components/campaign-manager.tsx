@@ -53,7 +53,7 @@ const initialCampaigns: Campaign[] = [
   {
     id: 'camp-001',
     name: '22 周年文化传播',
-    description: '周年庆生、员工故事与共创活动的全流程传播项目。',
+    description: '周年庆生、员工故事与共创活动的全流程宣传计划。',
     status: 'active', startDate: '2026-07-15', endDate: '2026-09-30', owner: '王彬彬', progress: 58, totalItems: 12, completedItems: 7,
     channels: ['公众号', '视频号', '内网', '小红书'],
     phases: [
@@ -67,7 +67,7 @@ const initialCampaigns: Campaign[] = [
         { id: 'item-5', title: '周年故事会精华', channel: '视频号', date: '08-17', status: 'scheduled', format: '视频' },
       ] },
       { id: 'phase-3', name: '沉淀与复盘', startDate: '09-01', endDate: '09-30', status: 'upcoming', items: [
-        { id: 'item-6', title: '周年项目复盘报告', channel: '内网', date: '09-12', status: 'draft', format: '报告' },
+        { id: 'item-6', title: '周年活动复盘报告', channel: '内网', date: '09-12', status: 'draft', format: '报告' },
       ] },
     ],
   },
@@ -128,16 +128,16 @@ export function CampaignManager() {
   const createProject = () => {
     const project: Campaign = {
       id: `camp-${Date.now()}`,
-      name: `未命名项目 ${campaigns.length + 1}`,
-      description: '等待补充项目目标、参与团队与传播计划。',
+      name: `未命名活动 ${campaigns.length + 1}`,
+      description: '等待补充活动目标、参与团队与传播计划。',
       status: 'planning', startDate: '待设置', endDate: '待设置', owner: '王彬彬', progress: 0, totalItems: 0, completedItems: 0,
       channels: ['内网'],
-      phases: [{ id: `phase-${Date.now()}`, name: '项目筹备', startDate: '待设置', endDate: '待设置', status: 'upcoming', items: [] }],
+      phases: [{ id: `phase-${Date.now()}`, name: '活动筹备', startDate: '待设置', endDate: '待设置', status: 'upcoming', items: [] }],
     };
     setCampaigns(current => [...current, project]);
     setSelectedId(project.id);
     setChannelFilter('all');
-    showToast('项目已创建，可以继续补充计划', 'success');
+    showToast('活动已创建，可以继续补充计划', 'success');
   };
 
   const createContentItem = () => {
@@ -163,12 +163,12 @@ export function CampaignManager() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[11px] font-semibold text-[#5267E8]">协同执行</p>
-            <h2 className="mt-1 text-[28px] font-semibold tracking-[-0.035em] text-[#17232D]">项目空间</h2>
-            <p className="mt-2 text-[12px] text-[#71818D]">从项目目标、阶段计划到内容发布，在一个空间协同推进。</p>
+            <h2 className="mt-1 text-[28px] font-semibold tracking-[-0.035em] text-[#17232D]">活动宣传</h2>
+            <p className="mt-2 text-[12px] text-[#71818D]">从活动目标、阶段节奏到内容发布，统一管理宣传计划。</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={createContentItem} className="flex h-10 items-center gap-2 rounded-xl border border-[#DDE5EA] bg-white px-4 text-[12px] font-semibold text-[#52636E] hover:border-[#BFCBDA]"><Plus className="h-4 w-4" /> 新建内容任务</button>
-            <button type="button" onClick={createProject} className="flex h-10 items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.20)]"><FolderKanban className="h-4 w-4" /> 新建项目</button>
+            <button type="button" onClick={createProject} className="flex h-10 items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.20)]"><Megaphone className="h-4 w-4" /> 新建活动</button>
           </div>
         </div>
 
@@ -214,7 +214,7 @@ export function CampaignManager() {
               </div>
             </div>
             <div className="border-t border-[#E8EDF1] p-4">
-              <p className="text-[10px] font-semibold text-[#60707D]">项目阶段</p>
+              <p className="text-[10px] font-semibold text-[#60707D]">活动阶段</p>
               <div className="mt-3 space-y-2">
                 {selectedCampaign.phases.map(phase => <div key={phase.id} className="flex items-center gap-2.5 rounded-xl border border-[#E7ECF0] p-2.5"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: phaseStatus[phase.status].dot }} /><span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-[#455660]">{phase.name}</span><span className="mt-0.5 block text-[9px] text-[#8A99A4]">{phase.startDate} - {phase.endDate}</span></span><span className="text-[9px] text-[#8A99A4]">{phase.items.length} 项</span></div>)}
               </div>
@@ -276,8 +276,8 @@ export function CampaignManager() {
 
         <div className="mt-4 grid gap-3 lg:grid-cols-3">
           {[
-            { label: '已完成项目', value: campaigns.filter(campaign => campaign.status === 'completed').length, icon: CheckCircle2 },
-            { label: '进行中项目', value: campaigns.filter(campaign => campaign.status === 'active').length, icon: Circle },
+            { label: '已完成活动', value: campaigns.filter(campaign => campaign.status === 'completed').length, icon: CheckCircle2 },
+            { label: '进行中活动', value: campaigns.filter(campaign => campaign.status === 'active').length, icon: Circle },
             { label: '待确认内容', value: campaigns.flatMap(campaign => campaign.phases).flatMap(phase => phase.items).filter(item => item.status === 'ready').length, icon: Clock3 },
           ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="surface-card flex items-center justify-between p-4"><span className="flex items-center gap-2 text-[10px] font-medium text-[#71818D]"><Icon className="h-4 w-4 text-[#687BEA]" />{stat.label}</span><strong className="text-[18px] font-semibold text-[#263640]">{stat.value}</strong></div>; })}
         </div>

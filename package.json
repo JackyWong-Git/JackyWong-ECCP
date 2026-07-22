@@ -5,11 +5,18 @@
   "scripts": {
     "build": "bash ./scripts/build.sh",
     "dev": "bash ./scripts/dev.sh",
+    "dev:all": "bash ./scripts/dev-all.sh",
+    "dev:api": "bash ./scripts/dev-api.sh",
+    "dev:auth": "bash ./scripts/dev-auth.sh",
+    "infra:up": "docker compose up -d postgres redis minio api worker",
+    "infra:down": "docker compose down",
     "preinstall": "npx only-allow pnpm",
     "lint": "eslint",
     "lint:build": "eslint . --quiet",
     "lint:style": "stylelint \"src/**/*.css\"",
     "start": "bash ./scripts/start.sh",
+    "test:auth": ".venv/bin/python manage.py test accounts",
+    "test:api": "PYTHONPATH=services/api .venv/bin/python -m pytest services/api/tests",
     "ts-check": "tsc -p tsconfig.json",
     "validate": "pnpm dlx concurrently --group --names lint-tsc,lint-build,lint-style \"pnpm ts-check\" \"pnpm lint:build\" \"pnpm lint:style\""
   },

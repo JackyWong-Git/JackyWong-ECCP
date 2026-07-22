@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%235267e8'/%3E%3Cpath d='M17 43V21l15-10 15 10v22L32 53 17 43Z' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='m24 25 8 5 8-5M32 30v11' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+    <title>登录 | ECCP 企业文化内容创作平台</title>
+    <style>
+      :root {
+        --ink: #172b36;
+        --muted: #667985;
+        --line: #dfe8ee;
+        --primary: #5267e8;
+        --primary-dark: #4054cf;
+        --cyan: #52c9e8;
+        --panel: rgb(255 255 255 / 92%);
+        --danger: #b6424a;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body { min-height: 100%; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 14%, rgb(92 210 229 / 24%), transparent 28rem),
+          radial-gradient(circle at 86% 82%, rgb(91 104 232 / 19%), transparent 32rem),
+          #edf4f7;
+        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      button, input { font: inherit; }
+
+      .page-shell {
+        position: relative;
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        overflow: hidden;
+        padding: 24px;
+      }
+
+      .page-shell::before {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgb(74 106 127 / 13%) 1px, transparent 1px);
+        background-size: 26px 26px;
+        mask-image: linear-gradient(to bottom, black, transparent 86%);
+        content: "";
+      }
+
+      .login-frame {
+        position: relative;
+        display: grid;
+        width: min(1080px, 100%);
+        min-height: 650px;
+        grid-template-columns: minmax(0, 1.08fr) minmax(400px, .92fr);
+        overflow: hidden;
+        border: 1px solid rgb(255 255 255 / 88%);
+        border-radius: 32px;
+        background: var(--panel);
+        box-shadow: 0 30px 90px rgb(28 53 69 / 16%), 0 2px 8px rgb(28 53 69 / 6%);
+        backdrop-filter: blur(18px);
+        animation: arrive .55s cubic-bezier(.22, 1, .36, 1) both;
+      }
+
+      .story-panel {
+        position: relative;
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        padding: 48px;
+        color: white;
+        background:
+          linear-gradient(145deg, rgb(44 67 153 / 92%), rgb(65 95 205 / 90%) 52%, rgb(49 170 195 / 82%)),
+          #405bd0;
+      }
+
+      .story-panel::before,
+      .story-panel::after {
+        position: absolute;
+        border: 1px solid rgb(255 255 255 / 18%);
+        border-radius: 50%;
+        content: "";
+      }
+
+      .story-panel::before { width: 420px; height: 420px; right: -185px; top: -130px; }
+      .story-panel::after { width: 310px; height: 310px; left: -190px; bottom: -105px; }
+
+      .brand, .story-copy, .system-card { position: relative; z-index: 1; }
+
+      .brand { display: flex; align-items: center; gap: 13px; }
+
+      .brand-mark {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 1px solid rgb(255 255 255 / 24%);
+        border-radius: 14px;
+        background: rgb(255 255 255 / 14%);
+        box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%);
+      }
+
+      .brand-mark svg { width: 23px; height: 23px; }
+      .brand-name { font-size: 18px; font-weight: 700; letter-spacing: .08em; }
+      .brand-subtitle { margin-top: 2px; color: rgb(255 255 255 / 66%); font-size: 10px; letter-spacing: .16em; }
+
+      .story-copy { max-width: 470px; margin: 50px 0; }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        color: rgb(255 255 255 / 74%);
+        font-size: 11px;
+        font-weight: 650;
+        letter-spacing: .16em;
+      }
+
+      .eyebrow::before { width: 26px; height: 1px; background: rgb(255 255 255 / 54%); content: ""; }
+
+      h1 {
+        max-width: 430px;
+        margin: 0;
+        font-family: "Noto Serif SC", "Songti SC", serif;
+        font-size: clamp(34px, 4.2vw, 54px);
+        font-weight: 600;
+        letter-spacing: -.04em;
+        line-height: 1.24;
+      }
+
+      .story-copy p {
+        max-width: 430px;
+        margin: 22px 0 0;
+        color: rgb(255 255 255 / 74%);
+        font-size: 14px;
+        line-height: 2;
+      }
+
+      .system-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: fit-content;
+        padding: 12px 15px;
+        border: 1px solid rgb(255 255 255 / 16%);
+        border-radius: 16px;
+        background: rgb(14 28 77 / 17%);
+      }
+
+      .pulse { width: 8px; height: 8px; border-radius: 50%; background: #80e3c4; box-shadow: 0 0 0 5px rgb(128 227 196 / 13%); }
+      .system-card strong { display: block; font-size: 11px; }
+      .system-card span { display: block; margin-top: 3px; color: rgb(255 255 255 / 58%); font-size: 9px; }
+
+      .form-panel {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: clamp(38px, 6vw, 72px);
+        background: rgb(255 255 255 / 78%);
+      }
+
+      .mobile-brand { display: none; }
+      .welcome-kicker { margin: 0 0 9px; color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .13em; }
+      h2 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.04em; }
+      .form-intro { margin: 12px 0 31px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+      .error-box {
+        margin: -10px 0 18px;
+        padding: 11px 13px;
+        border: 1px solid #f0cfd2;
+        border-radius: 12px;
+        color: var(--danger);
+        background: #fff5f5;
+        font-size: 11px;
+        line-height: 1.6;
+      }
+
+      .field { margin-bottom: 18px; }
+      .field-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      label { color: #344955; font-size: 12px; font-weight: 650; }
+
+      .input-wrap { position: relative; }
+      .input-wrap svg { position: absolute; left: 15px; top: 50%; width: 17px; height: 17px; color: #90a0aa; transform: translateY(-50%); pointer-events: none; }
+
+      input[type="text"], input[type="password"] {
+        width: 100%;
+        height: 50px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        outline: none;
+        padding: 0 45px;
+        color: var(--ink);
+        background: #f9fbfc;
+        font-size: 13px;
+        transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+      }
+
+      input[type="text"]:focus, input[type="password"]:focus {
+        border-color: #8695ed;
+        background: white;
+        box-shadow: 0 0 0 4px rgb(82 103 232 / 10%);
+      }
+
+      input::placeholder { color: #a0adb6; }
+
+      .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border: 0;
+        border-radius: 10px;
+        color: #84949f;
+        background: transparent;
+        cursor: pointer;
+        transform: translateY(-50%);
+      }
+
+      .password-toggle:hover { color: var(--primary); background: #eef1ff; }
+      .password-toggle svg { position: static; transform: none; pointer-events: auto; }
+
+      .form-options { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 22px; }
+      .remember { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; cursor: pointer; }
+      .remember input { width: 15px; height: 15px; accent-color: var(--primary); }
+      .support-link { color: var(--primary); font-size: 11px; font-weight: 650; text-decoration: none; }
+      .support-link:hover { text-decoration: underline; }
+
+      .submit-button {
+        display: flex;
+        width: 100%;
+        height: 50px;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border: 0;
+        border-radius: 14px;
+        color: white;
+        background: linear-gradient(110deg, var(--primary-dark), var(--primary) 56%, #567ee8);
+        box-shadow: 0 12px 26px rgb(82 103 232 / 25%);
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 700;
+        transition: transform .18s ease, box-shadow .18s ease;
+      }
+
+      .submit-button:hover { transform: translateY(-1px); box-shadow: 0 16px 30px rgb(82 103 232 / 30%); }
+      .submit-button:active { transform: translateY(0); }
+      .submit-button svg { width: 16px; height: 16px; }
+
+      .security-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; color: #8a9aa4; font-size: 10px; }
+      .security-note svg { width: 13px; height: 13px; }
+
+      @keyframes arrive {
+        from { opacity: 0; transform: translateY(16px) scale(.99); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @media (max-width: 820px) {
+        .page-shell { padding: 14px; }
+        .login-frame { width: min(500px, 100%); min-height: auto; grid-template-columns: 1fr; border-radius: 25px; }
+        .story-panel { display: none; }
+        .form-panel { min-height: min(680px, calc(100dvh - 28px)); padding: 36px 28px; }
+        .mobile-brand { display: flex; align-items: center; gap: 10px; margin-bottom: auto; }
+        .mobile-brand .brand-mark { color: white; background: linear-gradient(135deg, #4b5fd5, #52b8d3); }
+        .mobile-brand .brand-name { color: #263a46; font-size: 15px; }
+        .mobile-brand .brand-subtitle { color: #8999a4; }
+        .form-content { margin: 38px 0; }
+        .security-note { margin-top: auto; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="login-frame" aria-labelledby="login-title">
+        <aside class="story-panel" aria-label="平台介绍">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 18.2V8.8L12 4l7 4.8v9.4L12 22l-7-3.8Z"/><path d="m8.3 10.2 3.7 2.1 3.7-2.1M12 12.3v5.1"/></svg>
+            </span>
+            <span>
+              <span class="brand-name">ECCP</span>
+              <span class="brand-subtitle">CULTURE CREATION PLATFORM</span>
+            </span>
+          </div>
+
+          <div class="story-copy">
+            <span class="eyebrow">ENTERPRISE INTELLIGENCE</span>
+            <h1>让每一份文化素材，成为可持续的组织记忆。</h1>
+            <p>连接创作、知识与协同，用可信赖的 AI 工作流帮助团队把真实故事转化为有影响力的内容。</p>
+          </div>
+
+          <div class="system-card">
+            <span class="pulse" aria-hidden="true"></span>
+            <span><strong>企业服务运行正常</strong><span>身份认证与数据传输已加密</span></span>
+          </div>
+        </aside>
+
+        <div class="form-panel">
+          <div class="mobile-brand">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 18.2V8.8L12 4l7 4.8v9.4L12 22l-7-3.8Z"/><path d="m8.3 10.2 3.7 2.1 3.7-2.1M12 12.3v5.1"/></svg>
+            </span>
+            <span><span class="brand-name">ECCP</span><span class="brand-subtitle">CULTURE CREATION PLATFORM</span></span>
+          </div>
+
+          <div class="form-content">
+            <p class="welcome-kicker">WELCOME BACK</p>
+            <h2 id="login-title">登录工作台</h2>
+            <p class="form-intro">使用企业账号继续访问内容创作与知识协同空间。</p>
+
+            {% if form.non_field_errors %}
+              <div class="error-box" role="alert">账号或密码不正确，请检查后重新输入。</div>
+            {% endif %}
+
+            <form method="post" novalidate>
+              {% csrf_token %}
+              {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+              <div class="field">
+                <div class="field-head"><label for="{{ form.username.id_for_label }}">账号</label></div>
+                <div class="input-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.5-4 2.7-6 6.5-6s6 2 6.5 6"/></svg>
+                  {{ form.username }}
+                </div>
+                {% if form.username.errors %}<div class="error-box">{{ form.username.errors|striptags }}</div>{% endif %}
+              </div>
+
+              <div class="field">
+                <div class="field-head"><label for="{{ form.password.id_for_label }}">密码</label></div>
+                <div class="input-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                  {{ form.password }}
+                  <button class="password-toggle" type="button" aria-label="显示密码" aria-pressed="false">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12s3.4-5 9.5-5 9.5 5 9.5 5-3.4 5-9.5 5-9.5-5-9.5-5Z"/><circle cx="12" cy="12" r="2.2"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-options">
+                <label class="remember" for="{{ form.remember_me.id_for_label }}">{{ form.remember_me }} 保持登录状态</label>
+                <a class="support-link" href="mailto:eccp-support@example.com">遇到登录问题？</a>
+              </div>
+
+              <button class="submit-button" type="submit">
+                进入 ECCP
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M14 7l5 5-5 5"/></svg>
+              </button>
+            </form>
+          </div>
+
+          <div class="security-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            仅限授权成员访问 · 登录行为将被安全记录
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const toggle = document.querySelector('.password-toggle');
+      const password = document.querySelector('input[name="password"]');
+      toggle?.addEventListener('click', () => {
+        const showing = password.type === 'text';
+        password.type = showing ? 'password' : 'text';
+        toggle.setAttribute('aria-pressed', String(!showing));
+        toggle.setAttribute('aria-label', showing ? '显示密码' : '隐藏密码');
+      });
+    </script>
+  </body>
+</html>
