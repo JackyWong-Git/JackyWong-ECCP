@@ -1,7 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { showToast } from '@/components/toast';
+import {
+  type ExternalTopic,
+  type TopicSearchProvider,
+  type TopicSearchRange,
+  type TopicSearchResponse,
+} from '@/lib/topic-search-types';
 
 type TopicStatus = 'idea' | 'research' | 'approved' | 'in_progress' | 'done';
 type ViewMode = 'kanban' | 'table';
@@ -18,6 +24,9 @@ interface Topic {
   createdAt: string;
   estimatedWords: number;
   channel: string;
+  sourceUrl?: string;
+  externalScore?: number;
+  externalProvider?: string;
 }
 
 const statusColumns: { id: TopicStatus; label: string; color: string }[] = [
@@ -54,6 +63,15 @@ export function TopicsBoard() {
   const [dragOverCol, setDragOverCol] = useState<TopicStatus | null>(null);
   const [showNewTopic, setShowNewTopic] = useState(false);
   const [newTopicTitle, setNewTopicTitle] = useState('');
+  const [showDiscovery, setShowDiscovery] = useState(false);
+  const [externalQuery, setExternalQuery] = useState('企业文化');
+  const [externalProvider, setExternalProvider] = useState<TopicSearchProvider>('auto');
+  const [externalRange, setExternalRange] = useState<TopicSearchRange>('week');
+  const [externalResults, setExternalResults] = useState<ExternalTopic[]>([]);
+  const [searchingExternal, setSearchingExternal] = useState(false);
+  const [externalError, setExternalError] = useState('');
+  const [searchMeta, setSearchMeta] = useState<Pick<TopicSearchResponse, 'providers' | 'failures'> | null>(null);
+  const [importedExternalIds, setImportedExternalIds] = useState<string[]>([]);
 
   const filtered = topics.filter(t =>
     !searchQuery || t.title.includes(searchQuery) || t.tags.some(tag => tag.includes(searchQuery))
@@ -105,15 +123,66 @@ export function TopicsBoard() {
     showToast('选题已创建', 'success');
   };
 
+  const handleExternalSearch = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (externalQuery.trim().length < 2) {
+      setExternalError('请输入至少 2 个字符的搜索主题。');
+      return;
+    }
+
+    setSearchingExternal(true);
+    setExternalError('');
+    try {
+      const response = await fetch('/api/topics/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: externalQuery, provider: externalProvider, range: externalRange }),
+      });
+      const payload = await response.json() as TopicSearchResponse & { error?: string };
+      if (!response.ok) throw new Error(payload.error || '外部搜索失败。');
+      setExternalResults(payload.results);
+      setSearchMeta({ providers: payload.providers, failures: payload.failures });
+      if (!payload.results.length) showToast('没有找到匹配的外部选题，可调整关键词或时间范围', 'info');
+    } catch (error) {
+      setExternalResults([]);
+      setSearchMeta(null);
+      setExternalError(error instanceof Error ? error.message : '外部搜索失败。');
+    } finally {
+      setSearchingExternal(false);
+    }
+  };
+
+  const handleImportExternal = (candidate: ExternalTopic) => {
+    const newTopic: Topic = {
+      id: `external-${Date.now()}`,
+      title: candidate.title,
+      description: candidate.summary,
+      status: 'research',
+      priority: candidate.score >= 72 ? 'high' : candidate.score >= 42 ? 'medium' : 'low',
+      assignee: '待分配',
+      tags: candidate.tags,
+      source: `外部 · ${candidate.sourceName}`,
+      sourceUrl: candidate.url,
+      externalScore: candidate.score,
+      externalProvider: candidate.provider,
+      createdAt: new Date().toISOString().split('T')[0],
+      estimatedWords: 2000,
+      channel: '待评估',
+    };
+    setTopics(current => [newTopic, ...current]);
+    setImportedExternalIds(current => [...current, candidate.id]);
+    showToast('已导入到「调研中」，保留原始来源链接', 'success');
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: '#E8E6E1' }}>
+      <div className="flex flex-col gap-3 border-b px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between" style={{ borderColor: '#E8E6E1' }}>
         <div>
           <h1 className="text-xl font-semibold" style={{ color: '#1A1A1A', fontFamily: "'Noto Serif SC', serif" }}>选题看板</h1>
           <p className="text-sm mt-0.5" style={{ color: '#6B6B6B' }}>从灵感到成品，全流程管理内容选题</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Search */}
           <div className="relative">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9A9A9A" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
@@ -126,6 +195,15 @@ export function TopicsBoard() {
               style={{ borderColor: '#E8E6E1', backgroundColor: '#fff', '--tw-ring-color': '#D4A574' } as React.CSSProperties}
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setShowDiscovery(current => !current)}
+            className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+            style={{ borderColor: showDiscovery ? '#C17B3E' : '#E8E6E1', backgroundColor: showDiscovery ? '#FBF3E9' : '#fff', color: showDiscovery ? '#9A5F2F' : '#4E4943' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5M11 7v8M7 11h8" /></svg>
+            外部发现
+          </button>
           {/* View toggle */}
           <div className="flex rounded-md border overflow-hidden" style={{ borderColor: '#E8E6E1' }}>
             <button
@@ -171,6 +249,81 @@ export function TopicsBoard() {
           <button onClick={handleAddTopic} className="px-3 py-1.5 text-sm font-medium rounded-md" style={{ backgroundColor: '#D4A574', color: '#1A1A1A' }}>创建</button>
           <button onClick={() => setShowNewTopic(false)} className="px-3 py-1.5 text-sm rounded-md" style={{ color: '#6B6B6B' }}>取消</button>
         </div>
+      )}
+
+      {showDiscovery && (
+        <section className="border-b bg-[#FBF8F2] px-4 py-5 sm:px-6" style={{ borderColor: '#E8E6E1' }}>
+          <div className="mx-auto max-w-6xl rounded-2xl border border-[#E6D8C7] bg-white p-4 shadow-[0_10px_28px_rgba(76,58,38,0.05)] sm:p-5">
+            <div className="flex flex-col gap-3 border-b border-[#EEE7DD] pb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="text-[11px] font-semibold tracking-[0.14em] text-[#9A704F] uppercase">External Topic Discovery</div>
+                <h2 className="mt-1 text-lg font-semibold text-[#1A1A1A]" style={{ fontFamily: "'Noto Serif SC', serif" }}>搜索外部趋势并导入选题池</h2>
+                <p className="mt-1 text-xs leading-5 text-[#756D64]">结果会保留原文链接、发布时间与数据源；不会由模型虚构热点。</p>
+              </div>
+              {searchMeta && <div className="text-xs text-[#7C7369]">已查询 {searchMeta.providers.join(' + ')}{searchMeta.failures.length ? ` · ${searchMeta.failures.join('、')}` : ''}</div>}
+            </div>
+
+            <form onSubmit={handleExternalSearch} className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto] xl:items-end">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-[#5F574F]">搜索主题</span>
+                <input
+                  value={externalQuery}
+                  onChange={event => setExternalQuery(event.target.value)}
+                  placeholder="例如：雇主品牌、员工故事、AI 组织变革"
+                  className="w-full rounded-xl border border-[#E4DDD4] bg-white px-3 py-2.5 text-sm text-[#27231F] outline-none focus:border-[#C17B3E]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-[#5F574F]">数据源</span>
+                <select value={externalProvider} onChange={event => setExternalProvider(event.target.value as TopicSearchProvider)} className="w-full rounded-xl border border-[#E4DDD4] bg-white px-3 py-2.5 text-sm text-[#3B352F] outline-none focus:border-[#C17B3E]">
+                  <option value="auto">自动选择已连接源</option>
+                  <option value="openserp">OpenSERP</option>
+                  <option value="searxng">SearXNG</option>
+                  <option value="rss">RSS 订阅池</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-[#5F574F]">时间范围</span>
+                <select value={externalRange} onChange={event => setExternalRange(event.target.value as TopicSearchRange)} className="w-full rounded-xl border border-[#E4DDD4] bg-white px-3 py-2.5 text-sm text-[#3B352F] outline-none focus:border-[#C17B3E]">
+                  <option value="day">近 24 小时</option>
+                  <option value="week">近 7 天</option>
+                  <option value="month">近 30 天</option>
+                </select>
+              </label>
+              <button disabled={searchingExternal} className="rounded-xl bg-[#1A1A1A] px-4 py-2.5 text-sm font-medium text-[#FFF9F1] transition-colors hover:bg-[#34312E] disabled:cursor-not-allowed disabled:opacity-60">
+                {searchingExternal ? '检索中...' : '开始发现'}
+              </button>
+            </form>
+
+            {externalError && <div className="mt-4 rounded-xl border border-[#E8C7C7] bg-[#FFF6F6] px-3 py-2.5 text-sm text-[#974848]">{externalError}</div>}
+
+            {externalResults.length > 0 && (
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {externalResults.map(candidate => {
+                  const imported = importedExternalIds.includes(candidate.id);
+                  return (
+                    <article key={candidate.id} className="rounded-xl border border-[#E9E3DB] bg-[#FFFEFC] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <a href={candidate.url} target="_blank" rel="noreferrer" className="line-clamp-2 text-sm font-semibold leading-5 text-[#28231E] hover:text-[#9A5F2F] hover:underline">{candidate.title}</a>
+                          <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-[#81776D]"><span>{candidate.sourceName}</span><span>{candidate.provider}</span>{candidate.publishedAt && <span>{new Date(candidate.publishedAt).toLocaleDateString('zh-CN')}</span>}</div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-[#EAF2EB] px-2 py-1 text-[11px] font-semibold text-[#3F704C]">{candidate.score} 分</span>
+                      </div>
+                      {candidate.summary && <p className="mt-2 line-clamp-2 text-xs leading-5 text-[#6E665E]">{candidate.summary}</p>}
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <div className="flex flex-wrap gap-1">{candidate.tags.map(tag => <span key={tag} className="rounded bg-[#F2EEE8] px-1.5 py-0.5 text-[10px] text-[#6E655C]">{tag}</span>)}</div>
+                        <button type="button" disabled={imported} onClick={() => handleImportExternal(candidate)} className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-default" style={{ borderColor: imported ? '#D5E5D7' : '#D9B58D', backgroundColor: imported ? '#F0F7F1' : '#FFF9F1', color: imported ? '#4A7C59' : '#9A5F2F' }}>{imported ? '已导入' : '导入选题'}</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {!externalResults.length && !externalError && !searchingExternal && <p className="mt-4 text-xs text-[#8A8178]">配置好数据源后即可检索。支持自建 OpenSERP、SearXNG，以及由 RSSHub 或官方 RSS 提供的订阅池。</p>}
+          </div>
+        </section>
       )}
 
       {/* Content */}
@@ -369,6 +522,7 @@ export function TopicsBoard() {
                 <div className="p-3 rounded-md" style={{ backgroundColor: '#F0EDE8' }}>
                   <div className="text-xs mb-1" style={{ color: '#9A9A9A' }}>来源</div>
                   <div className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{selectedTopic.source}</div>
+                  {selectedTopic.sourceUrl && <a href={selectedTopic.sourceUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-[#A66B37] hover:underline">查看原文</a>}
                 </div>
               </div>
 

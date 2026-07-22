@@ -1,9 +1,39 @@
 'use client';
 
+import {
+  CalendarDays,
+  CheckCircle2,
+  Circle,
+  Clock3,
+  Filter,
+  FolderKanban,
+  GanttChartSquare,
+  List,
+  Megaphone,
+  Plus,
+  UserRound,
+} from 'lucide-react';
 import { useState } from 'react';
 import { showToast } from './toast';
 
-// --- Types ---
+interface CampaignItem {
+  id: string;
+  title: string;
+  channel: string;
+  date: string;
+  status: 'draft' | 'ready' | 'published' | 'scheduled';
+  format: string;
+}
+
+interface CampaignPhase {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: 'upcoming' | 'active' | 'completed';
+  items: CampaignItem[];
+}
+
 interface Campaign {
   id: string;
   name: string;
@@ -19,447 +49,239 @@ interface Campaign {
   completedItems: number;
 }
 
-interface CampaignPhase {
-  id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  status: 'upcoming' | 'active' | 'completed';
-  items: CampaignItem[];
-}
-
-interface CampaignItem {
-  id: string;
-  title: string;
-  channel: string;
-  date: string;
-  status: 'draft' | 'ready' | 'published' | 'scheduled';
-  format: string;
-}
-
-// --- Mock Data (based on the anniversary plan) ---
-const mockCampaigns: Campaign[] = [
+const initialCampaigns: Campaign[] = [
   {
     id: 'camp-001',
-    name: '22周年系列活动',
-    description: '22周年庆生+故事会+共创活动全流程传播',
-    status: 'active',
-    startDate: '2025-08-17',
-    endDate: '2025-09-30',
-    owner: '蔡雯欣',
-    progress: 35,
-    totalItems: 48,
-    completedItems: 17,
-    channels: ['微信公众号', '内网', 'K站生活圈', 'K站视频', '微信视频号', '电视台', '社媒', '宣传栏', '车站海报'],
+    name: '22 周年文化传播',
+    description: '周年庆生、员工故事与共创活动的全流程传播项目。',
+    status: 'active', startDate: '2026-07-15', endDate: '2026-09-30', owner: '王彬彬', progress: 58, totalItems: 12, completedItems: 7,
+    channels: ['公众号', '视频号', '内网', '小红书'],
     phases: [
-      {
-        id: 'phase-1',
-        name: '预热征集',
-        startDate: '2025-08-17',
-        endDate: '2025-08-31',
-        status: 'active',
-        items: [
-          { id: 'item-1', title: '周年LOGO & 故事会内容征集', channel: '微信公众号', date: '08-17', status: 'published', format: '图文' },
-          { id: 'item-2', title: '征集推文 + 二维码', channel: '内网', date: '08-17', status: 'published', format: '图文' },
-          { id: 'item-3', title: '投稿作品"抢先看"', channel: '微信公众号', date: '08-20', status: 'published', format: '图文' },
-          { id: 'item-4', title: 'LOGO征集结果发布', channel: '微信公众号', date: '08-24', status: 'ready', format: '图文' },
-          { id: 'item-5', title: '系列活动预告长图', channel: '微信公众号', date: '08-31', status: 'draft', format: '长图' },
-          { id: 'item-6', title: '系列活动预告', channel: '内网', date: '08-31', status: 'draft', format: '图文' },
-          { id: 'item-7', title: '征集活动口播', channel: 'K站视频', date: '08-17', status: 'published', format: '口播' },
-          { id: 'item-8', title: '路采混剪', channel: '社媒', date: '08-31', status: 'draft', format: '视频' },
-        ],
-      },
-      {
-        id: 'phase-2',
-        name: '周年活动（庆生）',
-        startDate: '2025-09-01',
-        endDate: '2025-09-06',
-        status: 'upcoming',
-        items: [
-          { id: 'item-9', title: '大事记 + 员工成长日记', channel: '微信公众号', date: '09-01', status: 'scheduled', format: '图文' },
-          { id: 'item-10', title: '庆生&故事会&摊位活动集锦', channel: '微信公众号', date: '09-01', status: 'scheduled', format: '图文' },
-          { id: 'item-11', title: '渠道周年企划（共创共答）', channel: 'K站生活圈', date: '09-01', status: 'scheduled', format: '图文' },
-          { id: 'item-12', title: '周年路采QA + 口播', channel: 'K站视频', date: '09-01', status: 'scheduled', format: '视频' },
-          { id: 'item-13', title: '员工故事详细版（5天）', channel: '微信公众号', date: '09-02~09-06', status: 'scheduled', format: '图文' },
-        ],
-      },
-      {
-        id: 'phase-3',
-        name: '后续传播',
-        startDate: '2025-09-07',
-        endDate: '2025-09-30',
-        status: 'upcoming',
-        items: [
-          { id: 'item-14', title: '共创活动宣传', channel: '微信公众号', date: '09-01', status: 'draft', format: '图文' },
-          { id: 'item-15', title: '活动维温（双周）', channel: '微信公众号', date: '09-15', status: 'draft', format: '图文' },
-        ],
-      },
+      { id: 'phase-1', name: '预热与人物征集', startDate: '07-15', endDate: '07-31', status: 'completed', items: [
+        { id: 'item-1', title: '员工故事征集通知', channel: '内网', date: '07-17', status: 'published', format: '图文' },
+        { id: 'item-2', title: '周年故事预告短片', channel: '视频号', date: '07-24', status: 'published', format: '视频' },
+      ] },
+      { id: 'phase-2', name: '核心内容发布', startDate: '08-01', endDate: '08-31', status: 'active', items: [
+        { id: 'item-3', title: '二十二年同行主题长图', channel: '公众号', date: '08-05', status: 'ready', format: '长图' },
+        { id: 'item-4', title: '一线员工人物故事', channel: '公众号', date: '08-12', status: 'draft', format: '文章' },
+        { id: 'item-5', title: '周年故事会精华', channel: '视频号', date: '08-17', status: 'scheduled', format: '视频' },
+      ] },
+      { id: 'phase-3', name: '沉淀与复盘', startDate: '09-01', endDate: '09-30', status: 'upcoming', items: [
+        { id: 'item-6', title: '周年项目复盘报告', channel: '内网', date: '09-12', status: 'draft', format: '报告' },
+      ] },
     ],
   },
   {
     id: 'camp-002',
-    name: '讲车帝共创活动',
-    description: '9-12月讲车帝内容创作大赛全流程推广',
-    status: 'active',
-    startDate: '2025-09-01',
-    endDate: '2025-12-21',
-    owner: '熊臣坤',
-    progress: 10,
-    totalItems: 24,
-    completedItems: 2,
-    channels: ['微信公众号', '内网', 'K站视频', '微信视频号'],
+    name: '新员工文化融入',
+    description: '帮助新员工理解品牌文化与关键行为准则。',
+    status: 'planning', startDate: '2026-08-01', endDate: '2026-10-15', owner: '刘思敏', progress: 24, totalItems: 8, completedItems: 2,
+    channels: ['内网', '企业微信', '线下活动'],
     phases: [
-      {
-        id: 'phase-4',
-        name: '素材征集',
-        startDate: '2025-09-01',
-        endDate: '2025-09-15',
-        status: 'active',
-        items: [
-          { id: 'item-16', title: '征集活动上线', channel: '微信公众号', date: '09-01', status: 'ready', format: '图文' },
-          { id: 'item-17', title: '征集活动上线', channel: '内网', date: '09-01', status: 'ready', format: '图文' },
-        ],
-      },
-      {
-        id: 'phase-5',
-        name: '活动维温',
-        startDate: '2025-09-15',
-        endDate: '2025-12-01',
-        status: 'upcoming',
-        items: [
-          { id: 'item-18', title: '阶段性优质素材展示', channel: '微信公众号', date: '09-30', status: 'draft', format: '图文' },
-          { id: 'item-19', title: '创作者专访', channel: 'K站视频', date: '10-08', status: 'draft', format: '视频' },
-        ],
-      },
-      {
-        id: 'phase-6',
-        name: '总结报道',
-        startDate: '2025-12-01',
-        endDate: '2025-12-21',
-        status: 'upcoming',
-        items: [],
-      },
+      { id: 'phase-4', name: '方案筹备', startDate: '08-01', endDate: '08-15', status: 'active', items: [
+        { id: 'item-7', title: '文化融入活动方案', channel: '内网', date: '08-06', status: 'ready', format: '方案' },
+      ] },
+      { id: 'phase-5', name: '活动执行', startDate: '08-16', endDate: '09-30', status: 'upcoming', items: [] },
     ],
   },
   {
     id: 'camp-003',
-    name: '安全生产月宣传',
-    description: '9月安全生产主题宣传',
-    status: 'planning',
-    startDate: '2025-09-01',
-    endDate: '2025-09-30',
-    owner: '王彬彬',
-    progress: 0,
-    totalItems: 8,
-    completedItems: 0,
-    channels: ['内网', '宣传栏'],
+    name: '品牌案例库共建',
+    description: '持续收集、评审并沉淀各渠道优秀文化内容。',
+    status: 'active', startDate: '2026-06-01', endDate: '2026-12-31', owner: '陈清', progress: 42, totalItems: 24, completedItems: 10,
+    channels: ['公众号', '视频号', '小红书'],
     phases: [
-      {
-        id: 'phase-7',
-        name: '安全宣传',
-        startDate: '2025-09-01',
-        endDate: '2025-09-30',
-        status: 'upcoming',
-        items: [],
-      },
+      { id: 'phase-6', name: '月度案例收集', startDate: '07-01', endDate: '07-31', status: 'active', items: [
+        { id: 'item-8', title: '7 月优秀案例评审', channel: '小红书', date: '07-28', status: 'scheduled', format: '评审' },
+      ] },
     ],
   },
 ];
 
-const allChannels = ['微信公众号', '内网', 'K站生活圈', 'K站视频', '微信视频号', '电视台', '社媒', '宣传栏', '车站海报'];
+const campaignStatus = {
+  planning: { label: '筹备中', bg: '#EEF2F5', color: '#657682' },
+  active: { label: '进行中', bg: '#EDF0FF', color: '#4660D3' },
+  paused: { label: '已暂停', bg: '#FFF4E6', color: '#B36F27' },
+  completed: { label: '已完成', bg: '#EAF7F1', color: '#21865D' },
+} as const;
 
-const statusColors: Record<string, { bg: string; text: string; label: string }> = {
-  planning: { bg: '#F0EFEB', text: '#6B6B6B', label: '规划中' },
-  active: { bg: '#EEF5F0', text: '#4A7C59', label: '进行中' },
-  paused: { bg: '#FDF5EC', text: '#C17B3E', label: '已暂停' },
-  completed: { bg: '#F0FDF4', text: '#16A34A', label: '已完成' },
-};
+const itemStatus = {
+  draft: { label: '草稿', bg: '#EEF2F5', color: '#657682' },
+  ready: { label: '待确认', bg: '#FFF4E6', color: '#B36F27' },
+  published: { label: '已发布', bg: '#EAF7F1', color: '#21865D' },
+  scheduled: { label: '已排期', bg: '#EDF0FF', color: '#4660D3' },
+} as const;
 
-const itemStatusColors: Record<string, { bg: string; text: string; label: string }> = {
-  draft: { bg: '#F0EFEB', text: '#6B6B6B', label: '草稿' },
-  ready: { bg: '#FDF5EC', text: '#C17B3E', label: '待发布' },
-  scheduled: { bg: '#EFF6FF', text: '#2563EB', label: '已排期' },
-  published: { bg: '#F0FDF4', text: '#16A34A', label: '已发布' },
-};
-
-const phaseStatusColors: Record<string, string> = {
-  upcoming: '#6B6B6B',
-  active: '#D4A574',
-  completed: '#4A7C59',
-};
+const phaseStatus = {
+  upcoming: { label: '待开始', dot: '#A6B2BA' },
+  active: { label: '进行中', dot: '#5267E8' },
+  completed: { label: '已完成', dot: '#25A76F' },
+} as const;
 
 export function CampaignManager() {
-  const [campaigns, setCampaigns] = useState(mockCampaigns);
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(mockCampaigns[0]);
-  const [view, setView] = useState<'timeline' | 'gantt'>('timeline');
-  const [channelFilter, setChannelFilter] = useState<string>('all');
+  const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const [selectedId, setSelectedId] = useState(initialCampaigns[0].id);
+  const [viewMode, setViewMode] = useState<'timeline' | 'gantt'>('timeline');
+  const [channelFilter, setChannelFilter] = useState('all');
+  const selectedCampaign = campaigns.find(campaign => campaign.id === selectedId) ?? campaigns[0];
 
-  const handleSelectCampaign = (camp: Campaign) => {
-    setSelectedCampaign(camp);
+  const createProject = () => {
+    const project: Campaign = {
+      id: `camp-${Date.now()}`,
+      name: `未命名项目 ${campaigns.length + 1}`,
+      description: '等待补充项目目标、参与团队与传播计划。',
+      status: 'planning', startDate: '待设置', endDate: '待设置', owner: '王彬彬', progress: 0, totalItems: 0, completedItems: 0,
+      channels: ['内网'],
+      phases: [{ id: `phase-${Date.now()}`, name: '项目筹备', startDate: '待设置', endDate: '待设置', status: 'upcoming', items: [] }],
+    };
+    setCampaigns(current => [...current, project]);
+    setSelectedId(project.id);
+    setChannelFilter('all');
+    showToast('项目已创建，可以继续补充计划', 'success');
   };
 
-  const filteredItems = (items: CampaignItem[]) => {
-    if (channelFilter === 'all') return items;
-    return items.filter(item => item.channel === channelFilter);
+  const createContentItem = () => {
+    const item: CampaignItem = { id: `item-${Date.now()}`, title: '未命名内容任务', channel: selectedCampaign.channels[0] ?? '内网', date: '待设置', status: 'draft', format: '待设置' };
+    setCampaigns(current => current.map(campaign => {
+      if (campaign.id !== selectedCampaign.id) return campaign;
+      const targetIndex = Math.max(0, campaign.phases.findIndex(phase => phase.status === 'active'));
+      return {
+        ...campaign,
+        totalItems: campaign.totalItems + 1,
+        phases: campaign.phases.map((phase, index) => index === targetIndex ? { ...phase, items: [item, ...phase.items] } : phase),
+      };
+    }));
+    setViewMode('timeline');
+    showToast('内容任务已加入当前阶段', 'success');
   };
+
+  const filteredItems = (items: CampaignItem[]) => channelFilter === 'all' ? items : items.filter(item => item.channel === channelFilter);
 
   return (
-    <div className="h-full flex flex-col bg-[#FAFAF8]">
-      {/* Header */}
-      <div className="px-6 pt-5 pb-4 border-b border-[#E8E6E1]">
-        <div className="flex items-center justify-between mb-3">
+    <div className="min-h-full overflow-x-hidden bg-[#F2F6F8] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1440px]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-[22px] font-semibold text-[#1A1A1A] tracking-tight" style={{ fontFamily: "'Noto Serif SC', serif" }}>
-              活动管理
-            </h1>
-            <p className="text-[13px] text-[#6B6B6B] mt-0.5">自有活动全生命周期 + 跨渠道排期</p>
+            <p className="text-[11px] font-semibold text-[#5267E8]">协同执行</p>
+            <h2 className="mt-1 text-[28px] font-semibold tracking-[-0.035em] text-[#17232D]">项目空间</h2>
+            <p className="mt-2 text-[12px] text-[#71818D]">从项目目标、阶段计划到内容发布，在一个空间协同推进。</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex bg-[#F0EFEB] rounded-md p-0.5">
-              <button
-                onClick={() => setView('timeline')}
-                className={`px-2.5 py-1 text-[12px] rounded ${view === 'timeline' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}
-              >
-                时间线
-              </button>
-              <button
-                onClick={() => setView('gantt')}
-                className={`px-2.5 py-1 text-[12px] rounded ${view === 'gantt' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}
-              >
-                甘特图
-              </button>
-            </div>
-            <button
-              onClick={() => showToast('新建活动', 'info')}
-              className="px-3 py-1.5 bg-[#D4A574] text-white text-[13px] rounded-md hover:bg-[#C49564] transition-colors"
-            >
-              新建活动
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={createContentItem} className="flex h-10 items-center gap-2 rounded-xl border border-[#DDE5EA] bg-white px-4 text-[12px] font-semibold text-[#52636E] hover:border-[#BFCBDA]"><Plus className="h-4 w-4" /> 新建内容任务</button>
+            <button type="button" onClick={createProject} className="flex h-10 items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.20)]"><FolderKanban className="h-4 w-4" /> 新建项目</button>
           </div>
         </div>
 
-        {/* Campaign selector */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {campaigns.map(camp => (
-            <button
-              key={camp.id}
-              onClick={() => handleSelectCampaign(camp)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-md text-[12px] transition-all ${
-                selectedCampaign?.id === camp.id
-                  ? 'bg-[#1A1A1A] text-white'
-                  : 'bg-[#F0EFEB] text-[#4A4A4A] hover:bg-[#E8E6E1]'
-              }`}
-            >
-              <span className="font-medium">{camp.name}</span>
-              <span className={`ml-1.5 text-[10px] ${selectedCampaign?.id === camp.id ? 'text-white/60' : 'text-[#6B6B6B]'}`}>
-                {camp.progress}%
-              </span>
-            </button>
-          ))}
+        <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto pb-1">
+          {campaigns.map(campaign => {
+            const active = campaign.id === selectedCampaign.id;
+            return (
+              <button key={campaign.id} type="button" aria-pressed={active} onClick={() => { setSelectedId(campaign.id); setChannelFilter('all'); }} className={`flex shrink-0 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-colors ${active ? 'border-[#C9D1FA] bg-[#F0F2FF]' : 'border-[#E1E8ED] bg-white hover:border-[#CBD5DD]'}`}>
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${active ? 'bg-white text-[#5267E8]' : 'bg-[#F2F5F7] text-[#7D8D98]'}`}><FolderKanban className="h-4 w-4" strokeWidth={1.8} /></span>
+                <span><span className={`block text-[11px] font-semibold ${active ? 'text-[#4257D2]' : 'text-[#40515B]'}`}>{campaign.name}</span><span className="mt-0.5 block text-[9px] text-[#8A99A4]">{campaign.progress}% · {campaignStatus[campaign.status].label}</span></span>
+              </button>
+            );
+          })}
         </div>
-      </div>
 
-      {/* Main content */}
-      {selectedCampaign && (
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left: Campaign overview */}
-          <div className="w-[280px] border-r border-[#E8E6E1] p-4 overflow-y-auto flex-shrink-0">
-            <div className="mb-4">
-              <h2 className="text-[16px] font-semibold text-[#1A1A1A] mb-1" style={{ fontFamily: "'Noto Serif SC', serif" }}>
-                {selectedCampaign.name}
-              </h2>
-              <p className="text-[12px] text-[#6B6B6B] leading-relaxed">{selectedCampaign.description}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="bg-white rounded-lg p-2.5 border border-[#E8E6E1]">
-                <div className="text-[10px] text-[#6B6B6B] mb-0.5">状态</div>
-                <span
-                  className="text-[11px] px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: statusColors[selectedCampaign.status]?.bg, color: statusColors[selectedCampaign.status]?.text }}
-                >
-                  {statusColors[selectedCampaign.status]?.label}
-                </span>
+        <div className="mt-4 grid gap-4 lg:grid-cols-[290px_minmax(0,1fr)]">
+          <aside className="surface-card h-fit overflow-hidden lg:sticky lg:top-4">
+            <div className="border-b border-[#E8EDF1] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><h3 className="text-[16px] font-semibold leading-6 text-[#263640]">{selectedCampaign.name}</h3><p className="mt-1 text-[10px] leading-5 text-[#7D8D98]">{selectedCampaign.description}</p></div>
+                <span className="shrink-0 rounded-lg px-2 py-1 text-[9px] font-semibold" style={{ backgroundColor: campaignStatus[selectedCampaign.status].bg, color: campaignStatus[selectedCampaign.status].color }}>{campaignStatus[selectedCampaign.status].label}</span>
               </div>
-              <div className="bg-white rounded-lg p-2.5 border border-[#E8E6E1]">
-                <div className="text-[10px] text-[#6B6B6B] mb-0.5">负责人</div>
-                <div className="text-[12px] font-medium text-[#1A1A1A]">{selectedCampaign.owner}</div>
-              </div>
-              <div className="bg-white rounded-lg p-2.5 border border-[#E8E6E1]">
-                <div className="text-[10px] text-[#6B6B6B] mb-0.5">开始</div>
-                <div className="text-[12px] font-medium text-[#1A1A1A]">{selectedCampaign.startDate}</div>
-              </div>
-              <div className="bg-white rounded-lg p-2.5 border border-[#E8E6E1]">
-                <div className="text-[10px] text-[#6B6B6B] mb-0.5">结束</div>
-                <div className="text-[12px] font-medium text-[#1A1A1A]">{selectedCampaign.endDate}</div>
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-[9px] text-[#81909B]"><span>整体进度</span><span>{selectedCampaign.completedItems}/{selectedCampaign.totalItems} 项</span></div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#EDF1F4]"><div className="h-full rounded-full bg-[linear-gradient(90deg,#7357E6,#5267E8,#23A4C2)]" style={{ width: `${selectedCampaign.progress}%` }} /></div>
               </div>
             </div>
-
-            {/* Progress */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between text-[11px] text-[#6B6B6B] mb-1">
-                <span>整体进度</span>
-                <span>{selectedCampaign.completedItems}/{selectedCampaign.totalItems} 项</span>
+            <div className="grid grid-cols-2 gap-2 p-4">
+              {[
+                { label: '负责人', value: selectedCampaign.owner, icon: UserRound },
+                { label: '开始时间', value: selectedCampaign.startDate, icon: CalendarDays },
+                { label: '结束时间', value: selectedCampaign.endDate, icon: Clock3 },
+                { label: '内容任务', value: `${selectedCampaign.totalItems} 项`, icon: Megaphone },
+              ].map(item => {
+                const Icon = item.icon;
+                return <div key={item.label} className="rounded-xl bg-[#F7F9FB] p-3"><Icon className="h-3.5 w-3.5 text-[#7C8CE8]" /><span className="mt-2 block text-[9px] text-[#8A99A4]">{item.label}</span><span className="mt-1 block truncate text-[10px] font-semibold text-[#455660]">{item.value}</span></div>;
+              })}
+            </div>
+            <div className="border-t border-[#E8EDF1] p-4">
+              <div className="flex items-center justify-between"><p className="text-[10px] font-semibold text-[#60707D]">发布渠道</p>{channelFilter !== 'all' ? <button type="button" onClick={() => setChannelFilter('all')} className="text-[9px] font-semibold text-[#5267E8]">清除筛选</button> : null}</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {selectedCampaign.channels.map(channel => <button key={channel} type="button" aria-pressed={channelFilter === channel} onClick={() => setChannelFilter(current => current === channel ? 'all' : channel)} className={`rounded-lg px-2 py-1 text-[9px] font-medium ${channelFilter === channel ? 'bg-[#5267E8] text-white' : 'bg-[#F1F4F7] text-[#687985] hover:bg-[#E8EDF1]'}`}>{channel}</button>)}
               </div>
-              <div className="h-1.5 bg-[#F0EFEB] rounded-full overflow-hidden">
-                <div className="h-full bg-[#D4A574] rounded-full transition-all" style={{ width: `${selectedCampaign.progress}%` }} />
+            </div>
+            <div className="border-t border-[#E8EDF1] p-4">
+              <p className="text-[10px] font-semibold text-[#60707D]">项目阶段</p>
+              <div className="mt-3 space-y-2">
+                {selectedCampaign.phases.map(phase => <div key={phase.id} className="flex items-center gap-2.5 rounded-xl border border-[#E7ECF0] p-2.5"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: phaseStatus[phase.status].dot }} /><span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-[#455660]">{phase.name}</span><span className="mt-0.5 block text-[9px] text-[#8A99A4]">{phase.startDate} - {phase.endDate}</span></span><span className="text-[9px] text-[#8A99A4]">{phase.items.length} 项</span></div>)}
+              </div>
+            </div>
+          </aside>
+
+          <section className="surface-card min-w-0 overflow-hidden">
+            <div className="flex flex-col gap-3 border-b border-[#E8EDF1] p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div><h3 className="text-[13px] font-semibold text-[#35454F]">内容计划</h3><p className="mt-1 text-[9px] text-[#8A99A4]">按阶段查看任务、渠道与发布状态</p></div>
+              <div className="flex items-center gap-2">
+                {channelFilter !== 'all' ? <span className="flex items-center gap-1.5 rounded-lg bg-[#EEF1FF] px-2 py-1.5 text-[9px] font-semibold text-[#5267E8]"><Filter className="h-3 w-3" />{channelFilter}</span> : null}
+                <div className="flex rounded-xl bg-[#F1F4F7] p-1">
+                  <button type="button" onClick={() => setViewMode('timeline')} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${viewMode === 'timeline' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#7D8D98]'}`}><List className="h-3.5 w-3.5" />时间线</button>
+                  <button type="button" onClick={() => setViewMode('gantt')} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${viewMode === 'gantt' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#7D8D98]'}`}><GanttChartSquare className="h-3.5 w-3.5" />排期</button>
+                </div>
               </div>
             </div>
 
-            {/* Channels */}
-            <div className="mb-4">
-              <div className="text-[11px] font-medium text-[#1A1A1A] mb-2">发布渠道</div>
-              <div className="flex flex-wrap gap-1">
-                {selectedCampaign.channels.map(ch => (
-                  <button
-                    key={ch}
-                    onClick={() => setChannelFilter(channelFilter === ch ? 'all' : ch)}
-                    className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
-                      channelFilter === ch
-                        ? 'bg-[#D4A574] text-white'
-                        : 'bg-[#F5F4F0] text-[#6B6B6B] hover:bg-[#E8E6E1]'
-                    }`}
-                  >
-                    {ch}
-                  </button>
-                ))}
-              </div>
-              {channelFilter !== 'all' && (
-                <button
-                  onClick={() => setChannelFilter('all')}
-                  className="text-[10px] text-[#D4A574] mt-1 hover:underline"
-                >
-                  清除筛选
-                </button>
-              )}
-            </div>
-
-            {/* Phases */}
-            <div>
-              <div className="text-[11px] font-medium text-[#1A1A1A] mb-2">阶段</div>
-              <div className="space-y-1.5">
-                {selectedCampaign.phases.map(phase => (
-                  <div key={phase.id} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-[#E8E6E1]">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: phaseStatusColors[phase.status] }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[12px] font-medium text-[#1A1A1A] truncate">{phase.name}</div>
-                      <div className="text-[10px] text-[#6B6B6B]">{phase.startDate} ~ {phase.endDate}</div>
-                    </div>
-                    <span className="text-[10px] text-[#6B6B6B]">{phase.items.length}项</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Timeline / Gantt */}
-          <div className="flex-1 overflow-auto p-4">
-            {view === 'timeline' ? (
-              <div className="space-y-6">
+            {viewMode === 'timeline' ? (
+              <div className="space-y-6 p-4 sm:p-5">
                 {selectedCampaign.phases.map(phase => {
                   const items = filteredItems(phase.items);
                   return (
                     <div key={phase.id}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: phaseStatusColors[phase.status] }} />
-                        <h3 className="text-[14px] font-semibold text-[#1A1A1A]">{phase.name}</h3>
-                        <span className="text-[11px] text-[#6B6B6B]">{phase.startDate} ~ {phase.endDate}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          phase.status === 'active' ? 'bg-[#D4A574]/10 text-[#D4A574]' :
-                          phase.status === 'completed' ? 'bg-[#4A7C59]/10 text-[#4A7C59]' :
-                          'bg-[#F0EFEB] text-[#6B6B6B]'
-                        }`}>
-                          {phase.status === 'active' ? '进行中' : phase.status === 'completed' ? '已完成' : '待开始'}
-                        </span>
+                      <div className="mb-3 flex flex-wrap items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: phaseStatus[phase.status].dot }} /><h4 className="text-[12px] font-semibold text-[#3C4D57]">{phase.name}</h4><span className="text-[9px] text-[#8A99A4]">{phase.startDate} - {phase.endDate}</span><span className="rounded-lg bg-[#F1F4F7] px-2 py-1 text-[9px] text-[#71818D]">{phaseStatus[phase.status].label}</span></div>
+                      <div className="space-y-2">
+                        {items.map(item => {
+                          const status = itemStatus[item.status];
+                          return (
+                            <button key={item.id} type="button" onClick={() => showToast(`已打开“${item.title}”`, 'info')} className="grid w-full gap-3 rounded-xl border border-[#E4EAF0] bg-white p-3 text-left transition-colors hover:border-[#C8D1F5] hover:bg-[#FAFBFE] lg:grid-cols-[70px_minmax(0,1fr)_90px_80px] lg:items-center">
+                              <span className="flex items-center gap-1.5 text-[10px] font-semibold text-[#657682]"><CalendarDays className="h-3.5 w-3.5 text-[#8C9AA4]" />{item.date}</span>
+                              <span className="min-w-0"><span className="block truncate text-[11px] font-semibold text-[#35454F]">{item.title}</span><span className="mt-1 block text-[9px] text-[#8A99A4]">{item.channel} · {item.format}</span></span>
+                              <span className="hidden text-[9px] text-[#71818D] lg:block">{item.channel}</span>
+                              <span className="w-fit rounded-lg px-2 py-1 text-[9px] font-semibold" style={{ backgroundColor: status.bg, color: status.color }}>{status.label}</span>
+                            </button>
+                          );
+                        })}
+                        {!items.length ? <div className="rounded-xl border border-dashed border-[#D9E1E7] px-4 py-8 text-center text-[10px] text-[#8A99A4]">{channelFilter === 'all' ? '当前阶段还没有内容任务' : '当前阶段没有该渠道的内容'}</div> : null}
                       </div>
-                      {items.length === 0 ? (
-                        <div className="text-[12px] text-[#6B6B6B] bg-white rounded-lg p-4 border border-[#E8E6E1] text-center">
-                          {channelFilter !== 'all' ? '该渠道暂无内容' : '暂无内容项'}
-                        </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {items.map(item => (
-                            <div
-                              key={item.id}
-                              className="flex items-center gap-3 bg-white rounded-lg p-3 border border-[#E8E6E1] hover:border-[#D4A574]/30 hover:shadow-sm transition-all cursor-pointer"
-                            >
-                              <div className="w-[60px] text-[12px] text-[#6B6B6B] font-mono flex-shrink-0">{item.date}</div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-[13px] text-[#1A1A1A] truncate">{item.title}</div>
-                              </div>
-                              <span className="text-[10px] bg-[#F5F4F0] text-[#6B6B6B] rounded px-1.5 py-0.5 flex-shrink-0">{item.channel}</span>
-                              <span className="text-[10px] bg-[#F5F4F0] text-[#6B6B6B] rounded px-1.5 py-0.5 flex-shrink-0">{item.format}</span>
-                              <span
-                                className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
-                                style={{ backgroundColor: itemStatusColors[item.status]?.bg, color: itemStatusColors[item.status]?.text }}
-                              >
-                                {itemStatusColors[item.status]?.label}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
             ) : (
-              /* Gantt-like view */
-              <div className="bg-white rounded-lg border border-[#E8E6E1] overflow-hidden">
-                <div className="overflow-x-auto">
-                  <div className="min-w-[800px]">
-                    {/* Header */}
-                    <div className="flex border-b border-[#E8E6E1] bg-[#FAFAF8]">
-                      <div className="w-[200px] flex-shrink-0 px-3 py-2 text-[11px] font-medium text-[#6B6B6B] border-r border-[#E8E6E1]">内容项</div>
-                      <div className="flex-1 flex">
-                        {['8月中', '8月下', '9月上', '9月中', '9月下'].map(period => (
-                          <div key={period} className="flex-1 px-2 py-2 text-[11px] text-[#6B6B6B] text-center border-r border-[#E8E6E1] last:border-0">
-                            {period}
-                          </div>
-                        ))}
-                      </div>
+              <div className="overflow-x-auto p-4 sm:p-5">
+                <div className="min-w-[720px] overflow-hidden rounded-2xl border border-[#E4EAF0]">
+                  <div className="grid grid-cols-[220px_repeat(5,1fr)] bg-[#F7F9FB] text-[9px] font-semibold text-[#81909B]"><span className="border-r border-[#E4EAF0] px-3 py-3">内容任务</span>{['7 月下', '8 月上', '8 月下', '9 月上', '9 月下'].map(period => <span key={period} className="border-r border-[#E4EAF0] px-2 py-3 text-center last:border-r-0">{period}</span>)}</div>
+                  {selectedCampaign.phases.flatMap(phase => filteredItems(phase.items)).map((item, index) => (
+                    <div key={item.id} className="grid grid-cols-[220px_repeat(5,1fr)] border-t border-[#E4EAF0] text-[9px]">
+                      <span className="border-r border-[#E4EAF0] px-3 py-3"><span className="block truncate font-semibold text-[#455660]">{item.title}</span><span className="mt-1 block text-[#8A99A4]">{item.channel} · {item.date}</span></span>
+                      {Array.from({ length: 5 }, (_, period) => <span key={period} className="relative min-h-12 border-r border-[#E4EAF0] last:border-r-0">{period === Math.min(4, index + 1) ? <span className="absolute inset-x-2 top-1/2 h-2 -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,#7357E6,#23A4C2)]" /> : null}</span>)}
                     </div>
-                    {/* Rows */}
-                    {selectedCampaign.phases.map(phase => (
-                      <div key={phase.id}>
-                        <div className="flex bg-[#FAFAF8]/50 border-b border-[#E8E6E1]">
-                          <div className="w-[200px] flex-shrink-0 px-3 py-2 text-[12px] font-medium text-[#1A1A1A] border-r border-[#E8E6E1]">
-                            {phase.name}
-                          </div>
-                          <div className="flex-1 relative h-8" />
-                        </div>
-                        {filteredItems(phase.items).map(item => (
-                          <div key={item.id} className="flex border-b border-[#E8E6E1] last:border-0 hover:bg-[#FAFAF8]">
-                            <div className="w-[200px] flex-shrink-0 px-3 py-2 border-r border-[#E8E6E1]">
-                              <div className="text-[12px] text-[#1A1A1A] truncate">{item.title}</div>
-                              <div className="text-[10px] text-[#6B6B6B]">{item.channel} · {item.format}</div>
-                            </div>
-                            <div className="flex-1 flex relative">
-                              {['8月中', '8月下', '9月上', '9月中', '9月下'].map((_, idx) => (
-                                <div key={idx} className="flex-1 border-r border-[#E8E6E1] last:border-0 relative">
-                                  {item.date.includes('08-17') && idx === 0 && (
-                                    <div className="absolute inset-y-1 left-1 right-1 bg-[#D4A574]/20 rounded" />
-                                  )}
-                                  {item.date.includes('08-31') && idx === 1 && (
-                                    <div className="absolute inset-y-1 left-1 right-1 bg-[#D4A574]/20 rounded" />
-                                  )}
-                                  {item.date.includes('09-01') && idx === 2 && (
-                                    <div className="absolute inset-y-1 left-1 right-1 bg-[#D4A574]/20 rounded" />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
-      )}
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          {[
+            { label: '已完成项目', value: campaigns.filter(campaign => campaign.status === 'completed').length, icon: CheckCircle2 },
+            { label: '进行中项目', value: campaigns.filter(campaign => campaign.status === 'active').length, icon: Circle },
+            { label: '待确认内容', value: campaigns.flatMap(campaign => campaign.phases).flatMap(phase => phase.items).filter(item => item.status === 'ready').length, icon: Clock3 },
+          ].map(stat => { const Icon = stat.icon; return <div key={stat.label} className="surface-card flex items-center justify-between p-4"><span className="flex items-center gap-2 text-[10px] font-medium text-[#71818D]"><Icon className="h-4 w-4 text-[#687BEA]" />{stat.label}</span><strong className="text-[18px] font-semibold text-[#263640]">{stat.value}</strong></div>; })}
+        </div>
+      </div>
     </div>
   );
 }

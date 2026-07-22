@@ -26,6 +26,58 @@ coze build
 coze start
 ```
 
+### 直接使用 pnpm 执行
+
+```bash
+pnpm install
+pnpm build
+pnpm start
+```
+
+### 部署说明
+
+- 构建脚本位于 `scripts/build.sh`，会自动安装依赖、执行 Next.js 生产构建，并打包自定义 Node 服务。
+- 启动脚本位于 `scripts/start.sh`，默认监听 `5000` 端口，可通过 `DEPLOY_RUN_PORT` 或 `PORT` 覆盖。
+- 当工作目录包含中文或其他非 ASCII 字符时，构建脚本会自动切换到临时 ASCII 目录完成构建，再将产物同步回项目目录，避免 Next.js 16 Turbopack 路径崩溃。
+- 交付前建议执行 `pnpm validate`，一次完成 TypeScript、ESLint 与 Stylelint 校验。
+
+### 外部选题发现
+
+选题看板的“外部发现”会从服务端连接已配置的数据源，检索结果保留来源链接、时间和数据源名称，并可一键导入为“调研中”选题。前端不会读取任何搜索密钥。
+
+在部署环境中按需设置以下变量：
+
+```bash
+# 推荐：自建 OpenSERP（MIT），默认调用 /mega/search
+TOPIC_SEARCH_OPENSERP_URL=http://127.0.0.1:7000
+TOPIC_SEARCH_OPENSERP_ENGINES=baidu,bing,duckduckgo
+# 仅使用 OpenSERP Cloud 等受鉴权服务时再配置
+TOPIC_SEARCH_OPENSERP_API_KEY=
+
+# 备选：自建 SearXNG（AGPL-3.0），使用 JSON 新闻搜索接口
+TOPIC_SEARCH_SEARXNG_URL=http://127.0.0.1:8080
+TOPIC_SEARCH_SEARXNG_LANGUAGE=zh-CN
+
+# 持续订阅池。格式为“名称|RSS 地址”，多条以逗号、分号或换行分隔。
+# 可以填 RSSHub 路由或官方 RSS；地址由管理员配置，避免任意 URL 请求。
+TOPIC_SEARCH_RSS_FEEDS="行业媒体|https://example.com/feed.xml,企业观察|https://example.org/rss"
+```
+
+- OpenSERP 提供多搜索引擎聚合、去重和结构化 JSON，适合实时选题搜索。
+- SearXNG 可作为私有元搜索服务；RSSHub 或官方 RSS 适合建立持续订阅的信息池。
+- RSSHub、SearXNG 均采用 AGPL-3.0。本项目只通过其公开 HTTP 接口集成，不包含或复制其源代码；部署前请按企业合规要求审查许可证和数据源条款。
+
+### DeepSeek V4
+
+AI 助手和配置为 DeepSeek V4 的 Agent 会通过服务端调用官方 API，密钥不会下发到浏览器。复制 `.env.example` 为 `.env.local` 并配置：
+
+```bash
+DEEPSEEK_API_KEY=
+DEEPSEEK_MODEL=deepseek-v4-pro
+```
+
+支持 `deepseek-v4-pro` 与 `deepseek-v4-flash`。默认使用 Pro，适合内容创作、复杂分析和 Agent 任务；Flash 可用于追求低延迟的批量处理。
+
 ## 项目结构
 
 ```

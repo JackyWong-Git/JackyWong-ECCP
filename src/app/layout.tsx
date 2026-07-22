@@ -29,8 +29,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ContentFlow - 内容创作全链路平台',
-  description: '从选题、写作、编辑到发布的一站式内容创作工作空间',
+  title: 'ECCP | 企业文化内容创作平台',
+  description: '面向企业文化与内容团队的全链路创作、编排、适配与发布工作台。',
 };
 
 export default function RootLayout({

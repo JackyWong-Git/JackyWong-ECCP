@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/sidebar';
 import { TopBar } from '@/components/top-bar';
 import { ToastContainer } from '@/components/toast';
@@ -19,9 +19,13 @@ import { AgentManagement } from '@/components/agent-management';
 import { SkillMarketplace } from '@/components/skill-marketplace';
 import { RAGKnowledgeBase } from '@/components/rag-knowledge-base';
 import { ExternalConnections } from '@/components/external-connections';
+import { AssistantWorkspace } from '@/components/assistant-workspace';
+import { TaskCenter } from '@/components/task-center';
 
 export type ViewType =
   | 'home'
+  | 'assistant'
+  | 'tasks'
   | 'studio'
   | 'design-system'
   | 'automation'
@@ -39,12 +43,25 @@ export type ViewType =
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<ViewType>('home');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+
+  useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 1024px)');
+    const syncSidebar = () => setSidebarCollapsed(!desktopQuery.matches);
+
+    syncSidebar();
+    desktopQuery.addEventListener('change', syncSidebar);
+    return () => desktopQuery.removeEventListener('change', syncSidebar);
+  }, []);
 
   const renderView = () => {
     switch (currentView) {
       case 'home':
-        return <HomeComposer />;
+        return <HomeComposer onNavigate={setCurrentView} />;
+      case 'assistant':
+        return <AssistantWorkspace onNavigate={setCurrentView} />;
+      case 'tasks':
+        return <TaskCenter onNavigate={setCurrentView} />;
       case 'studio':
         return <StudioMultiArtifact />;
       case 'design-system':
@@ -74,21 +91,21 @@ export default function Home() {
       case 'connections':
         return <ExternalConnections />;
       default:
-        return <HomeComposer />;
+        return <HomeComposer onNavigate={setCurrentView} />;
     }
   };
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: '#FAFAF8' }}>
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-[#F2F6F8]">
       <Sidebar
         currentView={currentView}
         onViewChange={setCurrentView}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar currentView={currentView} onViewChange={setCurrentView} />
-        <main className="flex-1 overflow-auto">
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
           {renderView()}
         </main>
       </div>
