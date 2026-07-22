@@ -108,6 +108,7 @@ out/
 coverage/
 *.lcov
 .nyc_output
+.playwright-cli/
 # Environment variables
 .env.local
 .env.development.local
