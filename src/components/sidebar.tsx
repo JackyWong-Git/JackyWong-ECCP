@@ -1,6 +1,26 @@
 'use client';
 
-import { type ViewType } from '@/app/page';
+import {
+  BarChart3,
+  Blocks,
+  Bot,
+  ChevronLeft,
+  ChevronRight,
+  FilePenLine,
+  Files,
+  Megaphone,
+  LayoutDashboard,
+  ListTodo,
+  PanelLeft,
+  PlugZap,
+  Puzzle,
+  Settings2,
+  Sparkles,
+  UsersRound,
+} from 'lucide-react';
+import { type ComponentType } from 'react';
+import { canAccessView, type ViewType } from '@/lib/access-control';
+import { useAuth } from '@/components/auth-guard';
 
 interface SidebarProps {
   currentView: ViewType;
@@ -12,327 +32,188 @@ interface SidebarProps {
 interface NavItem {
   id: ViewType;
   label: string;
-  icon: React.ReactNode;
-  shortcut?: string;
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  badge?: string;
 }
 
-// 入口
-const entryNav: NavItem[] = [
-  {
-    id: 'home',
-    label: '首页',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
-      </svg>
-    ),
-    shortcut: '1',
-  },
-];
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
 
-// 内容生产
-const contentNav: NavItem[] = [
+const navGroups: NavGroup[] = [
   {
-    id: 'requests',
-    label: '部门报送',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-      </svg>
-    ),
-    shortcut: '2',
+    label: '智能工作',
+    items: [
+      { id: 'home', label: '工作台', icon: LayoutDashboard },
+      { id: 'assistant', label: 'AI 助手', icon: Bot },
+      { id: 'studio', label: '智能创作', icon: Sparkles },
+    ],
   },
   {
-    id: 'campaigns',
-    label: '活动管理',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-        <line x1="16" y1="2" x2="16" y2="6" />
-        <line x1="8" y1="2" x2="8" y2="6" />
-        <line x1="3" y1="10" x2="21" y2="10" />
-      </svg>
-    ),
-    shortcut: '3',
+    label: '协同执行',
+    items: [
+      { id: 'campaigns', label: '活动宣传', icon: Megaphone, badge: '2' },
+      { id: 'tasks', label: '任务中心', icon: ListTodo, badge: '3' },
+      { id: 'knowledge', label: '文件与知识库', icon: Files },
+      { id: 'requests', label: '协作与报送', icon: UsersRound },
+    ],
   },
   {
-    id: 'topics',
-    label: '选题看板',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
-      </svg>
-    ),
-    shortcut: '4',
+    label: '内容资产',
+    items: [
+      { id: 'topics', label: '选题中心', icon: Blocks },
+      { id: 'scripts', label: '我的作品', icon: FilePenLine },
+      { id: 'analytics', label: '数据概览', icon: BarChart3 },
+    ],
   },
   {
-    id: 'scripts',
-    label: '脚本编辑',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-      </svg>
-    ),
-    shortcut: '5',
-  },
-];
-
-// 编排与引擎
-const engineNav: NavItem[] = [
-  {
-    id: 'workflows',
-    label: '工作流',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-    ),
-    shortcut: '6',
-  },
-  {
-    id: 'agents',
-    label: 'Agent',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="11" width="18" height="10" rx="2" />
-        <circle cx="12" cy="5" r="2" />
-        <path d="M12 7v4" />
-      </svg>
-    ),
-    shortcut: '7',
-  },
-  {
-    id: 'skills',
-    label: 'Skill',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-        <line x1="7" y1="7" x2="7.01" y2="7" />
-      </svg>
-    ),
-    shortcut: '8',
-  },
-];
-
-// 知识与数据
-const knowledgeNav: NavItem[] = [
-  {
-    id: 'knowledge',
-    label: '知识库',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      </svg>
-    ),
-    shortcut: '9',
-  },
-  {
-    id: 'analytics',
-    label: '数据',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10" />
-        <line x1="12" y1="20" x2="12" y2="4" />
-        <line x1="6" y1="20" x2="6" y2="14" />
-      </svg>
-    ),
-    shortcut: '0',
-  },
-  {
-    id: 'connections',
-    label: '集成',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-      </svg>
-    ),
+    label: '平台管理',
+    items: [
+      { id: 'connections', label: '连接管理', icon: PlugZap },
+      { id: 'agents', label: 'Agent 管理', icon: Bot },
+      { id: 'skills', label: 'Skill 能力中心', icon: Puzzle },
+      { id: 'workflows', label: '工作流编排', icon: ListTodo },
+      { id: 'design-system', label: '系统设置', icon: Settings2 },
+    ],
   },
 ];
 
 export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse }: SidebarProps) {
+  const { user } = useAuth();
+  const visibleGroups = navGroups
+    .map(group => ({ ...group, items: group.items.filter(item => canAccessView(user.permissions, item.id)) }))
+    .filter(group => group.items.length > 0);
+  const handleNavigate = (view: ViewType) => {
+    onViewChange(view);
+    if (window.innerWidth < 1024) onToggleCollapse();
+  };
+
   return (
     <>
-      {/* Mobile overlay */}
-      {!collapsed && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+      {!collapsed ? (
+        <button
+          type="button"
+          aria-label="关闭导航"
+          className="fixed inset-0 z-40 bg-[#17232D]/25 backdrop-blur-[2px] lg:hidden"
           onClick={onToggleCollapse}
         />
-      )}
+      ) : null}
 
-      {/* Sidebar */}
       <aside
-        className={`
-          fixed left-0 top-0 h-full bg-[#1A1A1A] border-r border-[#2A2A2A] z-50
-          transition-all duration-300 ease-in-out flex flex-col
-          ${collapsed ? 'w-[60px]' : 'w-[200px]'}
-          lg:translate-x-0 ${collapsed ? 'lg:translate-x-0' : 'lg:translate-x-0'}
-          ${collapsed ? 'translate-x-0' : 'translate-x-0'}
-        `}
+        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 flex-col border-r border-[#E5EBF0] bg-[#F7FAFB] transition-[width,transform] duration-200 ease-out lg:static lg:translate-x-0 ${
+          collapsed ? 'w-[76px] -translate-x-full lg:translate-x-0' : 'w-[232px] translate-x-0'
+        }`}
       >
-        {/* Logo */}
-        <div className="h-[52px] flex items-center px-4 border-b border-[#2A2A2A] flex-shrink-0">
-          <div className="w-7 h-7 rounded-md bg-gradient-to-br from-[#D4A574] to-[#C17B3E] flex items-center justify-center flex-shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 19l7-7 3 3-7 7-3-3z" />
-              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-              <path d="M2 2l7.586 7.586" />
-              <circle cx="11" cy="11" r="2" />
-            </svg>
-          </div>
-          {!collapsed && (
-            <span className="ml-2.5 font-serif text-[13px] font-semibold text-white tracking-tight">
-              ECCP
+        <div className={`flex h-16 shrink-0 items-center border-b border-[#E5EBF0] ${collapsed ? 'justify-center px-3' : 'px-5'}`}>
+          <button
+            type="button"
+            onClick={() => handleNavigate('home')}
+            aria-label="返回工作台"
+            className="flex min-w-0 items-center gap-3 rounded-xl"
+          >
+            <span className="ai-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-[0_8px_18px_rgba(82,103,232,0.22)]">
+              <Sparkles className="h-[18px] w-[18px] text-white" strokeWidth={2} />
             </span>
-          )}
+            {!collapsed ? (
+              <span className="min-w-0 text-left">
+                <span className="block text-[15px] font-semibold tracking-[-0.02em] text-[#17232D]">ECCP</span>
+                <span className="block truncate text-[10px] font-medium tracking-[0.04em] text-[#94A2AE]">AI WORKSPACE</span>
+              </span>
+            ) : null}
+          </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-3 overflow-y-auto">
-          {/* 入口 */}
-          <div className="mb-2">
-            {!collapsed && (
-              <div className="px-4 mb-1">
-                <span className="text-[10px] font-medium text-neutral-600 uppercase tracking-wider">入口</span>
-              </div>
-            )}
-            {entryNav.map((item) => (
-              <SidebarItem
-                key={item.id}
-                item={item}
-                isActive={currentView === item.id}
-                onClick={() => onViewChange(item.id)}
-                collapsed={collapsed}
-              />
-            ))}
-          </div>
+        <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-4" aria-label="主导航">
+          {visibleGroups.map((group, groupIndex) => (
+            <div key={group.label} className={groupIndex === 0 ? '' : 'mt-5'}>
+              {!collapsed ? (
+                <div className="mb-1.5 px-2 text-[10px] font-semibold tracking-[0.08em] text-[#9AA8B3]">
+                  {group.label}
+                </div>
+              ) : groupIndex > 0 ? (
+                <div className="mx-auto mb-2 h-px w-7 bg-[#E1E8ED]" />
+              ) : null}
 
-          {/* 内容生产 */}
-          <div className="mb-2">
-            {!collapsed && (
-              <div className="px-4 mb-1 mt-3">
-                <span className="text-[10px] font-medium text-neutral-600 uppercase tracking-wider">内容</span>
-              </div>
-            )}
-            {contentNav.map((item) => (
-              <SidebarItem
-                key={item.id}
-                item={item}
-                isActive={currentView === item.id}
-                onClick={() => onViewChange(item.id)}
-                collapsed={collapsed}
-              />
-            ))}
-          </div>
+              <div className="space-y-1">
+                {group.items.map(item => {
+                  const active = currentView === item.id;
+                  const Icon = item.icon;
 
-          {/* 编排与引擎 */}
-          <div className="mb-2">
-            {!collapsed && (
-              <div className="px-4 mb-1 mt-3">
-                <span className="text-[10px] font-medium text-neutral-600 uppercase tracking-wider">引擎</span>
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-label={item.label}
+                      title={collapsed ? item.label : undefined}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => handleNavigate(item.id)}
+                      className={`app-nav-item group relative flex h-10 w-full items-center rounded-xl text-[13px] font-medium transition-colors ${
+                        collapsed ? 'justify-center px-0' : 'gap-3 px-3'
+                      } ${
+                        active
+                          ? 'bg-[#EDEFFF] text-[#4257D2]'
+                          : 'text-[#60707D] hover:bg-[#EFF4F7] hover:text-[#273844]'
+                      }`}
+                    >
+                      <Icon
+                        className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-[#5267E8]' : 'text-[#788894] group-hover:text-[#5267E8]'}`}
+                        strokeWidth={1.8}
+                      />
+                      {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                      {!collapsed && item.badge ? (
+                        <span aria-hidden="true" className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${
+                          active ? 'bg-white text-[#5267E8]' : 'bg-[#E9EEF2] text-[#758692]'
+                        }`}>
+                          {item.badge}
+                        </span>
+                      ) : null}
+                      {active ? <span className="absolute -left-3 h-5 w-[3px] rounded-r-full bg-[#5267E8]" /> : null}
+                    </button>
+                  );
+                })}
               </div>
-            )}
-            {engineNav.map((item) => (
-              <SidebarItem
-                key={item.id}
-                item={item}
-                isActive={currentView === item.id}
-                onClick={() => onViewChange(item.id)}
-                collapsed={collapsed}
-              />
-            ))}
-          </div>
-
-          {/* 知识与数据 */}
-          <div className="mb-2">
-            {!collapsed && (
-              <div className="px-4 mb-1 mt-3">
-                <span className="text-[10px] font-medium text-neutral-600 uppercase tracking-wider">资产</span>
-              </div>
-            )}
-            {knowledgeNav.map((item) => (
-              <SidebarItem
-                key={item.id}
-                item={item}
-                isActive={currentView === item.id}
-                onClick={() => onViewChange(item.id)}
-                collapsed={collapsed}
-              />
-            ))}
-          </div>
+            </div>
+          ))}
         </nav>
 
-        {/* Footer */}
-        <div className="p-3 border-t border-[#2A2A2A] flex-shrink-0">
+        <div className="shrink-0 border-t border-[#E5EBF0] p-3">
+          {!collapsed ? (
+            <button
+              type="button"
+              className="mb-2 flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-[#EFF4F7]"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#DDE4FF] text-[12px] font-semibold text-[#4357C8]">{user.displayName.slice(-2)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[12px] font-semibold text-[#263640]">{user.displayName}</span>
+                <span className="block truncate text-[10px] text-[#8999A5]">{user.organizationLabel || user.department || 'ECCP 成员'}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 text-[#9AA8B3]" strokeWidth={1.8} />
+            </button>
+          ) : null}
+
           <button
+            type="button"
             onClick={onToggleCollapse}
-            className="w-full flex items-center justify-center p-2 rounded-md text-neutral-500 hover:text-white hover:bg-[#2A2A2A] transition-colors"
-            title={collapsed ? '展开侧边栏' : '收起侧边栏'}
+            aria-label={collapsed ? '展开导航' : '收起导航'}
+            className={`flex h-9 w-full items-center rounded-xl text-[#7A8A96] transition-colors hover:bg-[#EFF4F7] hover:text-[#5267E8] ${collapsed ? 'justify-center' : 'gap-3 px-3'}`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              {collapsed ? (
-                <>
-                  <polyline points="9 18 15 12 9 6" />
-                </>
-              ) : (
-                <>
-                  <polyline points="15 18 9 12 15 6" />
-                </>
-              )}
-            </svg>
-            {!collapsed && <span className="ml-2 text-xs">收起</span>}
+            {collapsed ? <ChevronRight className="h-[18px] w-[18px]" /> : <ChevronLeft className="h-[18px] w-[18px]" />}
+            {!collapsed ? <span className="text-[12px] font-medium">收起导航</span> : null}
           </button>
         </div>
       </aside>
+
+      {collapsed ? (
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-label="打开导航"
+          className="fixed left-3 top-3 z-40 flex h-10 w-10 items-center justify-center rounded-xl border border-[#E0E7EC] bg-white text-[#5267E8] shadow-[0_8px_20px_rgba(31,50,68,0.12)] lg:hidden"
+        >
+          <PanelLeft className="h-5 w-5" strokeWidth={1.8} />
+        </button>
+      ) : null}
     </>
-  );
-}
-
-interface SidebarItemProps {
-  item: NavItem;
-  isActive: boolean;
-  onClick: () => void;
-  collapsed: boolean;
-}
-
-function SidebarItem({ item, isActive, onClick, collapsed }: SidebarItemProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        w-full flex items-center px-3 py-1.5 mx-2 rounded-md text-[13px] transition-all duration-200
-        ${collapsed ? 'justify-center mx-1.5 px-0' : ''}
-        ${isActive
-          ? 'bg-[#2A2A2A] text-white'
-          : 'text-neutral-400 hover:text-white hover:bg-[#2A2A2A]/50'
-        }
-      `}
-      title={collapsed ? item.label : undefined}
-    >
-      <span className={`flex-shrink-0 ${isActive ? 'text-[#D4A574]' : ''}`}>
-        {item.icon}
-      </span>
-      {!collapsed && (
-        <>
-          <span className="ml-2.5 font-medium">{item.label}</span>
-          {item.shortcut && (
-            <span className="ml-auto text-[10px] text-neutral-600 font-mono">{item.shortcut}</span>
-          )}
-        </>
-      )}
-      {isActive && !collapsed && (
-        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-[#D4A574] rounded-r" />
-      )}
-    </button>
   );
 }

@@ -1,18 +1,70 @@
 # projects
 
-这是一个基于 [Next.js 16](https://nextjs.org) + [shadcn/ui](https://ui.shadcn.com) 的全栈应用项目，由扣子编程 CLI 创建。
+ECCP 采用 Next.js + FastAPI + PostgreSQL/pgvector + Redis + 对象存储架构。Django 暂时作为独立身份与权限服务，保留已确认的企业文化相关账号和服务端 Session。
 
 ## 快速开始
 
 ### 启动开发服务器
 
 ```bash
-coze dev
+pnpm dev:all
 ```
 
-启动后，在浏览器中打开 [http://localhost:5000](http://localhost:5000) 查看应用。
+该命令会同时启动 Django 认证、FastAPI 业务服务与 Next.js 工作台：
+
+- 登录入口：[http://localhost:8000/accounts/login/](http://localhost:8000/accounts/login/)
+- ECCP 工作台：[http://localhost:5000](http://localhost:5000)
+- FastAPI 文档：[http://localhost:8100/docs](http://localhost:8100/docs)
+
+企业文化系初始账号通过 Django 管理命令从审核后的名单数据导入。普通成员首次使用姓名拼音和工号初始密码登录，并会被要求立即设置新密码。
 
 开发服务器支持热更新，修改代码后页面会自动刷新。
+
+### Django 身份认证
+
+Django 负责账号密码校验、CSRF 防护和服务端 Session；Next.js 只负责工作台界面，并通过 `/api/auth/session` 验证登录状态。未登录访问工作台会跳转到 Django 登录页面，成功后返回原页面。
+
+```bash
+# 只启动认证服务
+pnpm dev:auth
+
+# 运行认证测试
+pnpm test:auth
+
+# 首次导入企业文化系权限账号；管理员密码必须通过环境变量注入
+ECCP_SUPERUSER_PASSWORD='replace-with-secret' .venv/bin/python manage.py import_culture_users
+```
+
+阿里云生产环境建议在同一 HTTPS 域名下反向代理：`/accounts/*`、`/api/auth/*` 指向 Django，其余请求指向 Next.js。生产环境必须设置随机 `DJANGO_SECRET_KEY`、`DJANGO_SECURE_COOKIES=1`，并将 SQLite 替换为 PostgreSQL。
+
+### FastAPI、pgvector、Redis 与对象存储
+
+FastAPI 承载知识库、RAG、AI 和后续自动化业务。浏览器不会直连 FastAPI：Next.js 先向 Django 校验 Session，再用短时 HMAC 身份头访问内部 API，避免客户端伪造工号或权限。
+
+无 Docker 的本地开发默认使用 SQLite、本地对象目录和进程内索引任务，便于快速调试。正式联调与生产架构使用：
+
+```bash
+# 启动 PostgreSQL/pgvector、Redis、MinIO、FastAPI 和索引 Worker
+pnpm infra:up
+
+# 查看服务
+curl http://localhost:8100/health
+open http://localhost:9001
+
+# 停止容器，保留数据卷
+pnpm infra:down
+```
+
+文件上传后先写入对象存储，再把索引任务放入 Redis；Worker 负责解析 PDF、DOCX、XLSX、Markdown、文本、CSV 和 JSON，分块并将向量写入 pgvector。开发环境的 `local_hash` 只用于验证链路，生产必须配置兼容 `/embeddings` 的向量模型服务。
+
+生产迁移由 Alembic 管理：
+
+```bash
+ECCP_API_DATABASE_URL='postgresql+asyncpg://...' \
+  .venv/bin/alembic -c services/api/alembic.ini upgrade head
+```
+
+关键安全要求：`ECCP_INTERNAL_AUTH_SECRET` 与 `ECCP_API_INTERNAL_AUTH_SECRET` 必须使用同一条长随机密钥，且 FastAPI 端口只开放给内网或反向代理。
 
 ### 构建生产版本
 
@@ -25,6 +77,58 @@ coze build
 ```bash
 coze start
 ```
+
+### 直接使用 pnpm 执行
+
+```bash
+pnpm install
+pnpm build
+pnpm start
+```
+
+### 部署说明
+
+- 构建脚本位于 `scripts/build.sh`，会自动安装依赖、执行 Next.js 生产构建，并打包自定义 Node 服务。
+- 启动脚本位于 `scripts/start.sh`，默认监听 `5000` 端口，可通过 `DEPLOY_RUN_PORT` 或 `PORT` 覆盖。
+- 当工作目录包含中文或其他非 ASCII 字符时，构建脚本会自动切换到临时 ASCII 目录完成构建，再将产物同步回项目目录，避免 Next.js 16 Turbopack 路径崩溃。
+- 交付前建议执行 `pnpm validate`，一次完成 TypeScript、ESLint 与 Stylelint 校验。
+
+### 外部选题发现
+
+选题看板的“外部发现”会从服务端连接已配置的数据源，检索结果保留来源链接、时间和数据源名称，并可一键导入为“调研中”选题。前端不会读取任何搜索密钥。
+
+在部署环境中按需设置以下变量：
+
+```bash
+# 推荐：自建 OpenSERP（MIT），默认调用 /mega/search
+TOPIC_SEARCH_OPENSERP_URL=http://127.0.0.1:7000
+TOPIC_SEARCH_OPENSERP_ENGINES=baidu,bing,duckduckgo
+# 仅使用 OpenSERP Cloud 等受鉴权服务时再配置
+TOPIC_SEARCH_OPENSERP_API_KEY=
+
+# 备选：自建 SearXNG（AGPL-3.0），使用 JSON 新闻搜索接口
+TOPIC_SEARCH_SEARXNG_URL=http://127.0.0.1:8080
+TOPIC_SEARCH_SEARXNG_LANGUAGE=zh-CN
+
+# 持续订阅池。格式为“名称|RSS 地址”，多条以逗号、分号或换行分隔。
+# 可以填 RSSHub 路由或官方 RSS；地址由管理员配置，避免任意 URL 请求。
+TOPIC_SEARCH_RSS_FEEDS="行业媒体|https://example.com/feed.xml,企业观察|https://example.org/rss"
+```
+
+- OpenSERP 提供多搜索引擎聚合、去重和结构化 JSON，适合实时选题搜索。
+- SearXNG 可作为私有元搜索服务；RSSHub 或官方 RSS 适合建立持续订阅的信息池。
+- RSSHub、SearXNG 均采用 AGPL-3.0。本项目只通过其公开 HTTP 接口集成，不包含或复制其源代码；部署前请按企业合规要求审查许可证和数据源条款。
+
+### DeepSeek V4
+
+AI 助手和配置为 DeepSeek V4 的 Agent 会通过服务端调用官方 API，密钥不会下发到浏览器。复制 `.env.example` 为 `.env.local` 并配置：
+
+```bash
+DEEPSEEK_API_KEY=
+DEEPSEEK_MODEL=deepseek-v4-pro
+```
+
+支持 `deepseek-v4-pro` 与 `deepseek-v4-flash`。默认使用 Pro，适合内容创作、复杂分析和 Agent 任务；Flash 可用于追求低延迟的批量处理。
 
 ## 项目结构
 

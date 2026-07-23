@@ -1,617 +1,160 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { CalendarDays, Check, FileText, LayoutGrid, List, LoaderCircle, MapPin, Paperclip, Plus, Search, Send, UserRound, X } from 'lucide-react';
+import { useDeferredValue, useEffect, useState } from 'react';
+import { type ListResponse, type MaterialItem, type MaterialStatus, formatDate, workflowApi } from '@/lib/workflow-api';
 import { showToast } from './toast';
 
-// --- Types: 对齐实际报送数据格式 ---
-interface Submission {
-  id: string;
-  department: string;       // 部门
-  date: string;             // 发生日期
-  eventType: string;        // 事件类型: 部/科级活动 | 会议 | 其他
-  description: string;      // 事件描述（过程与结果）
-  theme: string;            // 事件主题/名称
-  location: string;         // 地点
-  vpAttend: boolean;        // 是否有VP出席
-  promoMethod: string[];    // 期望宣传方式: 内刊简讯 | GTMCfamily | 电视台 | ...
-  // 内部审核字段
-  status: 'pending' | 'selected' | 'in_progress' | 'published' | 'rejected';
-  assignee?: string;        // 负责人
-  selectedChannels: string[]; // 实际选定渠道
-  notes: string;            // 备注
-}
-
-// --- 真实报送数据样本（来自 Excel 导出）---
-const realSubmissions: Submission[] = [
-  {
-    id: 'sub-001',
-    department: '总经理办公室',
-    date: '2026-05-09',
-    eventType: '部/科级活动',
-    description: '5月9日，总经办工会举行母亲节慰问活动。',
-    theme: '总经办母亲节慰问',
-    location: 'AD大办公室',
-    vpAttend: false,
-    promoMethod: ['内刊简讯'],
-    status: 'published',
-    assignee: '滕紫原',
-    selectedChannels: ['内网'],
-    notes: '已发布内刊第234期',
-  },
-  {
-    id: 'sub-002',
-    department: '品质保证部',
-    date: '2026-06-01',
-    eventType: '部/科级活动',
-    description: '部门工会面向对象员工开展"小小广汽人"六一儿童节活动，为对象儿童准备了精美的礼物。',
-    theme: '"小小广汽人"品保部工会分会六一儿童节活动',
-    location: 'SO-210',
-    vpAttend: false,
-    promoMethod: ['GTMCfamily'],
-    status: 'published',
-    assignee: '熊臣坤',
-    selectedChannels: ['K站生活圈'],
-    notes: '已发布GTMCfamily 6月刊',
-  },
-  {
-    id: 'sub-003',
-    department: '品质保证部',
-    date: '2026-06-05',
-    eventType: '会议',
-    description: '品保部作为品质管理体系事务局组织了公司质量管理体系的内部审查，并于6月5日召开末次会议，会上由事务局对内审结果进行说明，最后由管理者代表和泉副总经理点评。',
-    theme: '2026年广汽丰田质量管理体系内部审查末次会议',
-    location: 'SO-203',
-    vpAttend: true,
-    promoMethod: ['内刊简讯'],
-    status: 'in_progress',
-    assignee: '滕紫原',
-    selectedChannels: ['内网', 'K站生活圈'],
-    notes: 'VP出席，需重点报道',
-  },
-  {
-    id: 'sub-004',
-    department: '总装二部',
-    date: '2026-04-10',
-    eventType: '部/科级活动',
-    description: '为表彰25年度工作业务上有突出成绩的员工，科内予以晋升积极。科长对于大家的工作进行了肯定，并希望能在今后的工作中继续发挥领头羊精神。',
-    theme: '总装二部技术2科晋升晋级表彰',
-    location: '3线',
-    vpAttend: false,
-    promoMethod: ['GTMCfamily', '内刊简讯'],
-    status: 'selected',
-    selectedChannels: [],
-    notes: '',
-  },
-  {
-    id: 'sub-005',
-    department: '涂装成型二部',
-    date: '2026-07-13',
-    eventType: '部/科级活动',
-    description: '为提升密封胶技能水平，通过技能比赛提升员工的品质意识及作业技能/加强员工之间的品质、技能等方面交流，提升涂装成型部整体品质效果!',
-    theme: '涂装成型二部密封胶技能大赛提升活动',
-    location: '密封胶训练场',
-    vpAttend: false,
-    promoMethod: ['GTMCfamily'],
-    status: 'pending',
-    selectedChannels: [],
-    notes: '',
-  },
-  {
-    id: 'sub-006',
-    department: '总装二部',
-    date: '2026-04-28',
-    eventType: '会议',
-    description: '为确保机内作业安全，进行实地确认',
-    theme: '4L 总装摩擦线机内区域观察',
-    location: '4线',
-    vpAttend: false,
-    promoMethod: ['GTMCfamily', '内刊简讯'],
-    status: 'pending',
-    selectedChannels: [],
-    notes: '',
-  },
-  {
-    id: 'sub-007',
-    department: '总装二部',
-    date: '2026-04-28',
-    eventType: '部/科级活动',
-    description: '丰富员工业余活动，提升团队合作意识',
-    theme: '总装3科拔河比赛',
-    location: '3线',
-    vpAttend: false,
-    promoMethod: ['GTMCfamily', '内刊简讯'],
-    status: 'pending',
-    selectedChannels: [],
-    notes: '',
-  },
-  {
-    id: 'sub-008',
-    department: '人事总务部',
-    date: '2026-06-05',
-    eventType: '部/科级活动',
-    description: '6月是安全月，人事总务部召集了部门全员在办公区开展了安全月启动会，宣读了两位总经理的寄语，并发布了活动内容。',
-    theme: '安全月启动会',
-    location: '人事总务部办公区',
-    vpAttend: false,
-    promoMethod: ['内刊简讯'],
-    status: 'pending',
-    selectedChannels: [],
-    notes: '',
-  },
-  {
-    id: 'sub-009',
-    department: '研究开发本部',
-    date: '2026-04-20',
-    eventType: '其他',
-    description: '五大高校领导赴 GTMC 工厂参观，先后考察总装、焊装等生产线与智能制造车间，深入了解精益生产与品质管控体系。双方围绕产教融合、人才培养、技术创新等议题座谈交流。',
-    theme: '五大高校领导参观GTMC工厂',
-    location: '五线工厂',
-    vpAttend: false,
-    promoMethod: ['内刊简讯'],
-    status: 'selected',
-    selectedChannels: [],
-    notes: '校企合作重要素材',
-  },
-  {
-    id: 'sub-010',
-    department: '研究开发本部',
-    date: '2026-05-09',
-    eventType: '部/科级活动',
-    description: '在人工智能技术飞速发展的背景下，为支撑部门数字化转型战略，技术开发部面向部门骨干精心策划了「AI 场景创新工作坊」。',
-    theme: 'AI 赋能创新 智启企业未来 —— 技术开发部 AI 场景创新工作坊',
-    location: '新RD-101',
-    vpAttend: false,
-    promoMethod: ['内刊简讯'],
-    status: 'pending',
-    selectedChannels: [],
-    notes: '',
-  },
-  {
-    id: 'sub-011',
-    department: '品质保证部',
-    date: '2026-04-10',
-    eventType: '部/科级活动',
-    description: '面向工会组织的铂智7新媒体短视频大赛，为了确保短视频传播效果，助力铂智7大卖，品质保证部计划在赛前开展技能培训。',
-    theme: '铂智7新媒体短视频竞赛_部门培训',
-    location: '生产办公楼',
-    vpAttend: false,
-    promoMethod: ['GTMCfamily'],
-    status: 'pending',
-    selectedChannels: [],
-    notes: '',
-  },
-  {
-    id: 'sub-012',
-    department: '财务部',
-    date: '2026-04-15',
-    eventType: '会议',
-    description: '由国家税务总局广东省税务局货物和劳务税处王星处长带队，省、市、区三级税务局联合调研组赴广汽丰田汽车有限公司开展专题调研。',
-    theme: '广东省税务局联合调研组赴广汽丰田专题调研',
-    location: '四线生产车间',
-    vpAttend: true,
-    promoMethod: ['内刊简讯'],
-    status: 'pending',
-    selectedChannels: [],
-    notes: 'VP陪同，高规格调研',
-  },
-];
-
-// --- 配置 ---
-const departments = [
-  '总经理办公室', '品质保证部', '总装二部', '涂装成型二部',
-  '人事总务部', '研究开发本部', '财务部', '销售部',
-  '总务部', '质量管理部', '环境设施管理部',
-];
-
-const eventTypes = [
-  { value: '部/科级活动', label: '部/科级活动', color: '#D4A574' },
-  { value: '会议', label: '会议', color: '#4A7C59' },
-  { value: '其他', label: '其他', color: '#6B6B6B' },
-];
-
-const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-  pending: { label: '待审核', color: '#6B6B6B', bg: '#F0EFEB' },
-  selected: { label: '已选中', color: '#C17B3E', bg: '#FDF5EC' },
-  in_progress: { label: '制作中', color: '#2563EB', bg: '#EFF6FF' },
-  published: { label: '已发布', color: '#16A34A', bg: '#F0FDF4' },
-  rejected: { label: '不采用', color: '#A64D4D', bg: '#FEF2F2' },
+const statusDefinition: Record<MaterialStatus, { label: string; color: string; bg: string }> = {
+  pending: { label: '待筛选', color: '#657682', bg: '#EEF2F5' },
+  selected: { label: '已选中', color: '#5267E8', bg: '#EEF0FF' },
+  in_progress: { label: '制作中', color: '#B36F27', bg: '#FFF4E6' },
+  published: { label: '已发布', color: '#21865D', bg: '#EAF7F1' },
+  rejected: { label: '暂不采用', color: '#9A6470', bg: '#F8EDF0' },
 };
 
-const channels = ['微信公众号', '内网', 'K站生活圈', 'K站视频', '微信视频号', '电视台', '社媒', '宣传栏', '车站海报'];
+const urgencyDefinition = {
+  low: { label: '低', color: '#7C8D98' },
+  normal: { label: '普通', color: '#5267E8' },
+  high: { label: '高', color: '#E28A32' },
+  urgent: { label: '紧急', color: '#DC5A60' },
+};
+
+const emptyForm = {
+  title: '', description: '', material_type: 'event', category: '员工故事', source_department: '人事总务部', source_contact: '', happened_at: '', location: '', urgency: 'normal', tags: '', expected_channels: '内网', notes: '',
+};
 
 export function RequestIntake() {
-  const [submissions, setSubmissions] = useState(realSubmissions);
+  const [materials, setMaterials] = useState<MaterialItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState('');
   const [view, setView] = useState<'board' | 'list'>('board');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [deptFilter, setDeptFilter] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useState<'all' | MaterialStatus>('all');
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<MaterialItem | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [file, setFile] = useState<File | null>(null);
+  const deferredQuery = useDeferredValue(query.toLocaleLowerCase().trim());
 
-  const filtered = submissions
-    .filter(s => statusFilter === 'all' || s.status === statusFilter)
-    .filter(s => deptFilter === 'all' || s.department === deptFilter)
-    .filter(s => !searchQuery || s.theme.toLowerCase().includes(searchQuery.toLowerCase()) || s.description.toLowerCase().includes(searchQuery.toLowerCase()));
+  useEffect(() => {
+    let active = true;
+    workflowApi<ListResponse<MaterialItem>>('materials')
+      .then(payload => { if (active) setMaterials(payload.items); })
+      .catch(error => showToast(error instanceof Error ? error.message : '素材加载失败', 'error'))
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
-  const stats = {
-    total: submissions.length,
-    pending: submissions.filter(s => s.status === 'pending').length,
-    selected: submissions.filter(s => s.status === 'selected').length,
-    inProgress: submissions.filter(s => s.status === 'in_progress').length,
-    published: submissions.filter(s => s.status === 'published').length,
-    vpCount: submissions.filter(s => s.vpAttend).length,
+  const visible = materials.filter(item => {
+    const matchesFilter = filter === 'all' || item.status === filter;
+    const haystack = `${item.title} ${item.description} ${item.source_department} ${item.tags.join(' ')}`.toLocaleLowerCase();
+    return matchesFilter && (!deferredQuery || haystack.includes(deferredQuery));
+  });
+
+  const replaceMaterial = (material: MaterialItem) => {
+    setMaterials(current => current.map(item => item.id === material.id ? material : item));
+    setSelected(current => current?.id === material.id ? material : current);
   };
 
-  const handleStatusChange = (id: string, newStatus: Submission['status']) => {
-    setSubmissions(prev => prev.map(s => s.id === id ? { ...s, status: newStatus } : s));
-    if (selectedSub?.id === id) {
-      setSelectedSub(prev => prev ? { ...prev, status: newStatus } : null);
+  const createMaterial = async () => {
+    if (form.title.trim().length < 2 || form.source_department.trim().length < 2) {
+      showToast('请完整填写素材标题和来源部门', 'error');
+      return;
     }
-    showToast(`状态已更新为「${statusConfig[newStatus].label}」`, 'success');
-  };
-
-  const handleImport = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      showToast(`正在导入「${file.name}」...`, 'info');
-      // Simulate import
-      setTimeout(() => {
-        showToast('导入成功！新增 12 条报送记录', 'success');
-        setShowImportModal(false);
-      }, 1500);
+    setBusyId('create');
+    try {
+      let created = await workflowApi<MaterialItem>('materials', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...form,
+          happened_at: form.happened_at || null,
+          tags: form.tags.split(/[,，]/).map(item => item.trim()).filter(Boolean),
+          expected_channels: form.expected_channels.split(/[,，]/).map(item => item.trim()).filter(Boolean),
+        }),
+      });
+      if (file) {
+        const body = new FormData();
+        body.append('file', file);
+        created = await workflowApi<MaterialItem>(`materials/${created.id}/attachment`, { method: 'POST', body });
+      }
+      setMaterials(current => [created, ...current]);
+      setForm(emptyForm);
+      setFile(null);
+      setShowCreate(false);
+      setSelected(created);
+      showToast('素材已上报', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '上报失败', 'error');
+    } finally {
+      setBusyId('');
     }
   };
 
-  const columns = [
-    { key: 'pending', label: '待审核' },
-    { key: 'selected', label: '已选中' },
-    { key: 'in_progress', label: '制作中' },
-    { key: 'published', label: '已发布' },
+  const updateStatus = async (material: MaterialItem, status: MaterialStatus) => {
+    setBusyId(material.id);
+    try {
+      const updated = await workflowApi<MaterialItem>(`materials/${material.id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      replaceMaterial(updated);
+      showToast(`素材已更新为“${statusDefinition[status].label}”`, 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '更新失败', 'error');
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const schedule = async (material: MaterialItem) => {
+    setBusyId(material.id);
+    try {
+      const result = await workflowApi<{ material: MaterialItem }>(`workflow/materials/${material.id}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify({ create_topic: true, priority: material.urgency === 'urgent' ? 'urgent' : material.urgency, project_name: '素材转内容' }),
+      });
+      replaceMaterial(result.material);
+      showToast('已创建选题和内容任务', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '调度失败', 'error');
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const fields: Array<{ key: keyof typeof emptyForm; label: string; placeholder?: string; type?: string; wide?: boolean }> = [
+    { key: 'title', label: '素材标题', placeholder: '例如：一线改善提案获奖', wide: true },
+    { key: 'source_department', label: '来源部门' },
+    { key: 'source_contact', label: '联系人' },
+    { key: 'happened_at', label: '发生日期', type: 'date' },
+    { key: 'location', label: '发生地点' },
+    { key: 'tags', label: '标签', placeholder: '用逗号分隔' },
+    { key: 'expected_channels', label: '期望渠道', placeholder: '内网,公众号' },
   ];
 
   return (
-    <div className="h-full flex flex-col bg-[#FAFAF8]">
-      <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFileChange} />
+    <div className="min-h-full bg-[#F2F6F8] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1440px]">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[11px] font-semibold text-[#5267E8]">需求入口</p><h1 className="mt-1 text-[28px] font-semibold tracking-[-0.035em] text-[#17232D]">素材上报</h1><p className="mt-2 text-[12px] text-[#71818D]">统一接收一线素材，筛选后一键转为选题和内容任务。</p></div><button onClick={() => setShowCreate(true)} className="flex h-10 w-fit items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.20)]"><Plus className="h-4 w-4"/>上报新素材</button></header>
 
-      {/* Header */}
-      <div className="px-6 pt-5 pb-4 border-b border-[#E8E6E1]">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-[22px] font-semibold text-[#1A1A1A] tracking-tight" style={{ fontFamily: "'Noto Serif SC', serif" }}>
-              信息报送
-            </h1>
-            <p className="text-[13px] text-[#6B6B6B] mt-0.5">部门每周报送 → 审核筛选 → 渠道分发</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex bg-[#F0EFEB] rounded-md p-0.5">
-              <button onClick={() => setView('board')} className={`px-2.5 py-1 text-[12px] rounded ${view === 'board' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}>
-                看板
-              </button>
-              <button onClick={() => setView('list')} className={`px-2.5 py-1 text-[12px] rounded ${view === 'list' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}>
-                列表
-              </button>
-            </div>
-            <button
-              onClick={handleImport}
-              className="px-3 py-1.5 border border-[#E8E6E1] text-[#1A1A1A] text-[13px] rounded-md hover:bg-[#F5F4F0] flex items-center gap-1.5"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-              导入 Excel
-            </button>
-          </div>
-        </div>
+        <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-[#E1E8ED] bg-white p-3 shadow-[0_8px_24px_rgba(35,54,72,0.04)] lg:flex-row lg:items-center"><div className="no-scrollbar flex gap-1 overflow-x-auto">{([{ id: 'all', label: '全部' }, ...Object.entries(statusDefinition).map(([id, value]) => ({ id, label: value.label }))] as Array<{ id: 'all' | MaterialStatus; label: string }>).map(option => <button key={option.id} onClick={() => setFilter(option.id)} className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-medium ${filter === option.id ? 'bg-[#EEF0FF] text-[#5267E8]' : 'text-[#6F808C] hover:bg-[#F4F7F9]'}`}>{option.label}<span className="ml-1.5 text-[9px] opacity-70">{option.id === 'all' ? materials.length : materials.filter(item => item.status === option.id).length}</span></button>)}</div><div className="ml-auto flex items-center gap-2"><label className="flex h-9 flex-1 items-center gap-2 rounded-xl border border-[#E1E8ED] bg-[#F8FAFC] px-3 lg:w-64"><Search className="h-3.5 w-3.5 text-[#82919C]"/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索标题、部门或标签" className="min-w-0 flex-1 bg-transparent text-[10px] outline-none"/></label><div className="flex rounded-xl bg-[#F1F4F7] p-1"><button aria-label="看板" onClick={() => setView('board')} className={`flex h-7 w-7 items-center justify-center rounded-lg ${view === 'board' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#83929D]'}`}><LayoutGrid className="h-3.5 w-3.5"/></button><button aria-label="列表" onClick={() => setView('list')} className={`flex h-7 w-7 items-center justify-center rounded-lg ${view === 'list' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#83929D]'}`}><List className="h-3.5 w-3.5"/></button></div></div></div>
 
-        {/* Stats */}
-        <div className="flex items-center gap-6 mb-3">
-          {[
-            { label: '总报送', count: stats.total, color: '#1A1A1A' },
-            { label: '待审核', count: stats.pending, color: '#6B6B6B' },
-            { label: '已选中', count: stats.selected, color: '#C17B3E' },
-            { label: '制作中', count: stats.inProgress, color: '#2563EB' },
-            { label: '已发布', count: stats.published, color: '#16A34A' },
-            { label: 'VP出席', count: stats.vpCount, color: '#A64D4D' },
-          ].map((s, i) => (
-            <div key={i} className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-              <span className="text-[12px] text-[#6B6B6B]">{s.label}</span>
-              <span className="text-[13px] font-medium text-[#1A1A1A]">{s.count}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-[280px]">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-            <input
-              type="text"
-              placeholder="搜索主题/描述..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-[13px] bg-white border border-[#E8E6E1] rounded-md focus:outline-none focus:border-[#D4A574]"
-            />
-          </div>
-          <select
-            value={deptFilter}
-            onChange={e => setDeptFilter(e.target.value)}
-            className="px-2.5 py-1.5 text-[13px] bg-white border border-[#E8E6E1] rounded-md focus:outline-none focus:border-[#D4A574]"
-          >
-            <option value="all">全部部门</option>
-            {departments.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <div className="flex bg-[#F0EFEB] rounded-md p-0.5">
-            <button onClick={() => setStatusFilter('all')} className={`px-2 py-1 text-[11px] rounded ${statusFilter === 'all' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}>全部</button>
-            <button onClick={() => setStatusFilter('pending')} className={`px-2 py-1 text-[11px] rounded ${statusFilter === 'pending' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}>待审核</button>
-            <button onClick={() => setStatusFilter('selected')} className={`px-2 py-1 text-[11px] rounded ${statusFilter === 'selected' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}>已选中</button>
-            <button onClick={() => setStatusFilter('in_progress')} className={`px-2 py-1 text-[11px] rounded ${statusFilter === 'in_progress' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}>制作中</button>
-            <button onClick={() => setStatusFilter('published')} className={`px-2 py-1 text-[11px] rounded ${statusFilter === 'published' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#6B6B6B]'}`}>已发布</button>
-          </div>
-        </div>
+        {loading ? <div className="flex h-64 items-center justify-center text-xs text-[#71818D]"><LoaderCircle className="mr-2 h-5 w-5 animate-spin"/>正在读取素材</div> : view === 'board' ? <div className="no-scrollbar mt-4 flex gap-4 overflow-x-auto pb-4">{(Object.keys(statusDefinition) as MaterialStatus[]).map(status => <section key={status} className="w-[304px] shrink-0 rounded-2xl border border-[#E1E8ED] bg-[#F7F9FB] p-3"><div className="mb-3 flex items-center justify-between px-1"><span className="flex items-center gap-2 text-[11px] font-semibold text-[#4B5C67]"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: statusDefinition[status].color }}/>{statusDefinition[status].label}</span><span className="rounded-full bg-white px-2 py-1 text-[9px] text-[#748590]">{visible.filter(item => item.status === status).length}</span></div><div className="space-y-2">{visible.filter(item => item.status === status).map(item => <MaterialCard key={item.id} item={item} onOpen={() => setSelected(item)}/>)}</div></section>)}</div> : <div className="mt-4 overflow-hidden rounded-2xl border border-[#E1E8ED] bg-white"><div className="divide-y divide-[#EDF1F4]">{visible.map(item => <button key={item.id} onClick={() => setSelected(item)} className="grid w-full gap-2 px-4 py-4 text-left hover:bg-[#FAFBFE] sm:grid-cols-[minmax(0,1.5fr)_160px_110px_100px] sm:items-center"><span><strong className="block truncate text-[11px] text-[#34444E]">{item.title}</strong><small className="mt-1 block text-[9px] text-[#8D9BA5]">{item.source_department} · {formatDate(item.created_at)}</small></span><span className="text-[10px] text-[#687985]">{item.source_contact || '未填写'}</span><span className="text-[10px]" style={{ color: urgencyDefinition[item.urgency].color }}>{urgencyDefinition[item.urgency].label}</span><span className="w-fit rounded-lg px-2 py-1 text-[9px] font-semibold" style={{ color: statusDefinition[item.status].color, backgroundColor: statusDefinition[item.status].bg }}>{statusDefinition[item.status].label}</span></button>)}{!visible.length && <Empty/>}</div></div>}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {view === 'board' ? (
-          <div className="h-full flex gap-3 p-4 overflow-x-auto">
-            {columns.map(col => {
-              const colItems = filtered.filter(s => s.status === col.key);
-              return (
-                <div key={col.key} className="flex-shrink-0 w-[300px] flex flex-col">
-                  <div className="flex items-center justify-between mb-2 px-1">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: statusConfig[col.key]?.color }} />
-                      <span className="text-[13px] font-medium text-[#1A1A1A]">{col.label}</span>
-                      <span className="text-[11px] text-[#6B6B6B] bg-[#F0EFEB] rounded-full px-1.5 py-0.5">{colItems.length}</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 space-y-2 overflow-y-auto">
-                    {colItems.map(sub => (
-                      <div
-                        key={sub.id}
-                        onClick={() => setSelectedSub(sub)}
-                        className="bg-white rounded-lg p-3 cursor-pointer hover:shadow-md transition-all border border-[#E8E6E1] hover:border-[#D4A574]/30"
-                      >
-                        <div className="flex items-start justify-between mb-1.5">
-                          <span
-                            className="text-[10px] px-1.5 py-0.5 rounded"
-                            style={{
-                              backgroundColor: eventTypes.find(t => t.value === sub.eventType)?.color + '18',
-                              color: eventTypes.find(t => t.value === sub.eventType)?.color,
-                            }}
-                          >
-                            {sub.eventType}
-                          </span>
-                          {sub.vpAttend && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#A64D4D]/10 text-[#A64D4D]">VP出席</span>
-                          )}
-                        </div>
-                        <h3 className="text-[13px] font-medium text-[#1A1A1A] mb-1.5 line-clamp-2">{sub.theme}</h3>
-                        <div className="flex items-center gap-2 text-[11px] text-[#6B6B6B] mb-2">
-                          <span>{sub.department}</span>
-                          <span>·</span>
-                          <span>{sub.date}</span>
-                          <span>·</span>
-                          <span>{sub.location}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {sub.promoMethod.map(m => (
-                            <span key={m} className="text-[10px] bg-[#F5F4F0] text-[#6B6B6B] rounded px-1.5 py-0.5">{m}</span>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-[#6B6B6B] line-clamp-1 flex-1 mr-2">{sub.description}</span>
-                        </div>
-                        {sub.status === 'pending' && (
-                          <div className="flex gap-1 mt-2 pt-2 border-t border-[#F0EFEB]">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleStatusChange(sub.id, 'selected'); }}
-                              className="flex-1 px-2 py-1 bg-[#4A7C59]/10 text-[#4A7C59] rounded text-[11px] hover:bg-[#4A7C59]/20"
-                            >
-                              选中
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleStatusChange(sub.id, 'rejected'); }}
-                              className="flex-1 px-2 py-1 bg-[#A64D4D]/10 text-[#A64D4D] rounded text-[11px] hover:bg-[#A64D4D]/20"
-                            >
-                              不采用
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="p-4">
-            <div className="bg-white rounded-lg border border-[#E8E6E1] overflow-hidden">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#E8E6E1] bg-[#FAFAF8]">
-                    <th className="text-left px-4 py-2.5 text-[12px] font-medium text-[#6B6B6B]">事件主题</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-medium text-[#6B6B6B]">类型</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-medium text-[#6B6B6B]">部门</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-medium text-[#6B6B6B]">日期</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-medium text-[#6B6B6B]">期望宣传</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-medium text-[#6B6B6B]">状态</th>
-                    <th className="text-left px-4 py-2.5 text-[12px] font-medium text-[#6B6B6B]">负责人</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(sub => (
-                    <tr
-                      key={sub.id}
-                      onClick={() => setSelectedSub(sub)}
-                      className="border-b border-[#E8E6E1] last:border-0 cursor-pointer hover:bg-[#FAFAF8]"
-                    >
-                      <td className="px-4 py-3 text-[13px] text-[#1A1A1A] font-medium max-w-[240px]">
-                        <div className="flex items-center gap-1.5">
-                          {sub.vpAttend && <span className="text-[9px] px-1 py-0.5 rounded bg-[#A64D4D]/10 text-[#A64D4D] shrink-0">VP</span>}
-                          <span className="line-clamp-1">{sub.theme}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-[11px] px-1.5 py-0.5 rounded" style={{ backgroundColor: eventTypes.find(t => t.value === sub.eventType)?.color + '18', color: eventTypes.find(t => t.value === sub.eventType)?.color }}>
-                          {sub.eventType}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[13px] text-[#6B6B6B]">{sub.department}</td>
-                      <td className="px-4 py-3 text-[13px] text-[#6B6B6B]">{sub.date}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {sub.promoMethod.map(m => (
-                            <span key={m} className="text-[10px] bg-[#F5F4F0] text-[#6B6B6B] rounded px-1.5 py-0.5">{m}</span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ backgroundColor: statusConfig[sub.status]?.bg, color: statusConfig[sub.status]?.color }}>
-                          {statusConfig[sub.status]?.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[13px] text-[#6B6B6B]">{sub.assignee || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+      {showCreate && <div className="fixed inset-0 z-[80] grid place-items-center overflow-y-auto bg-[#17232D]/25 p-4 backdrop-blur-sm" onMouseDown={event => { if (event.currentTarget === event.target) setShowCreate(false); }}><div className="my-6 w-full max-w-[760px] rounded-3xl border border-white/80 bg-white p-5 shadow-[0_28px_80px_rgba(26,44,58,0.22)] sm:p-7"><div className="flex justify-between"><div><p className="text-[10px] font-semibold text-[#5267E8]">素材录入</p><h2 className="mt-1 text-xl font-semibold text-[#263640]">上报新素材</h2></div><button aria-label="关闭" onClick={() => setShowCreate(false)} className="flex h-8 w-8 items-center justify-center rounded-xl hover:bg-[#F1F4F7]"><X className="h-4 w-4"/></button></div><div className="mt-6 grid gap-4 sm:grid-cols-2">{fields.map(field => <label key={field.key} className={field.wide ? 'sm:col-span-2' : ''}><span className="mb-1.5 block text-[10px] font-semibold text-[#6C7C87]">{field.label}</span><input type={field.type || 'text'} value={form[field.key]} onChange={event => setForm(current => ({ ...current, [field.key]: event.target.value }))} placeholder={field.placeholder} className="h-10 w-full rounded-xl border border-[#DDE5EA] px-3 text-sm outline-none focus:border-[#7083EE]"/></label>)}<label><span className="mb-1.5 block text-[10px] font-semibold text-[#6C7C87]">紧急程度</span><select value={form.urgency} onChange={event => setForm(current => ({ ...current, urgency: event.target.value }))} className="h-10 w-full rounded-xl border border-[#DDE5EA] bg-white px-3 text-sm"><option value="normal">普通</option><option value="high">高</option><option value="urgent">紧急</option><option value="low">低</option></select></label><label><span className="mb-1.5 block text-[10px] font-semibold text-[#6C7C87]">附件</span><span className="flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-dashed border-[#C7D2DA] px-3 text-xs text-[#71818D]"><Paperclip className="h-4 w-4"/><span className="truncate">{file?.name || '选择文件（可选）'}</span><input type="file" className="hidden" onChange={event => setFile(event.target.files?.[0] || null)}/></span></label><label className="sm:col-span-2"><span className="mb-1.5 block text-[10px] font-semibold text-[#6C7C87]">素材详情</span><textarea value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} rows={4} className="w-full resize-none rounded-xl border border-[#DDE5EA] p-3 text-sm outline-none focus:border-[#7083EE]" placeholder="记录人物、事件、亮点与可核实信息"/></label></div><button disabled={busyId === 'create'} onClick={() => void createMaterial()} className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#5267E8] text-xs font-semibold text-white disabled:opacity-60">{busyId === 'create' ? <LoaderCircle className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}提交素材</button></div></div>}
 
-      {/* Detail Panel */}
-      {selectedSub && (
-        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setSelectedSub(null)}>
-          <div className="absolute inset-0 bg-black/20" />
-          <div className="relative w-[520px] bg-white h-full overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] px-2 py-1 rounded" style={{ backgroundColor: eventTypes.find(t => t.value === selectedSub.eventType)?.color + '18', color: eventTypes.find(t => t.value === selectedSub.eventType)?.color }}>
-                    {selectedSub.eventType}
-                  </span>
-                  {selectedSub.vpAttend && (
-                    <span className="text-[11px] px-2 py-1 rounded bg-[#A64D4D]/10 text-[#A64D4D]">VP出席</span>
-                  )}
-                </div>
-                <button onClick={() => setSelectedSub(null)} className="text-[#6B6B6B] hover:text-[#1A1A1A]">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                </button>
-              </div>
-
-              <h2 className="text-[20px] font-semibold text-[#1A1A1A] mb-2" style={{ fontFamily: "'Noto Serif SC', serif" }}>
-                {selectedSub.theme}
-              </h2>
-
-              <div className="flex items-center gap-3 text-[13px] text-[#6B6B6B] mb-4">
-                <span>{selectedSub.department}</span>
-                <span>·</span>
-                <span>{selectedSub.date}</span>
-                <span>·</span>
-                <span>{selectedSub.location}</span>
-              </div>
-
-              {/* Meta Grid */}
-              <div className="grid grid-cols-2 gap-3 mb-5">
-                <div className="bg-[#FAFAF8] rounded-lg p-3">
-                  <div className="text-[11px] text-[#6B6B6B] mb-1">事件类型</div>
-                  <div className="text-[13px] font-medium text-[#1A1A1A]">{selectedSub.eventType}</div>
-                </div>
-                <div className="bg-[#FAFAF8] rounded-lg p-3">
-                  <div className="text-[11px] text-[#6B6B6B] mb-1">审核状态</div>
-                  <span className="text-[12px] px-2 py-0.5 rounded-full" style={{ backgroundColor: statusConfig[selectedSub.status]?.bg, color: statusConfig[selectedSub.status]?.color }}>
-                    {statusConfig[selectedSub.status]?.label}
-                  </span>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="mb-5">
-                <div className="text-[12px] font-medium text-[#1A1A1A] mb-2">事件描述</div>
-                <p className="text-[13px] text-[#4A4A4A] leading-relaxed bg-[#FAFAF8] rounded-lg p-3">{selectedSub.description}</p>
-              </div>
-
-              {/* Expected Promotion */}
-              <div className="mb-5">
-                <div className="text-[12px] font-medium text-[#1A1A1A] mb-2">期望宣传方式</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedSub.promoMethod.map(m => (
-                    <span key={m} className="text-[12px] bg-[#F5F4F0] text-[#4A4A4A] rounded px-2 py-1">{m}</span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Selected Channels */}
-              {selectedSub.selectedChannels.length > 0 && (
-                <div className="mb-5">
-                  <div className="text-[12px] font-medium text-[#1A1A1A] mb-2">实际分发渠道</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedSub.selectedChannels.map(ch => (
-                      <span key={ch} className="text-[12px] bg-[#D4A574]/10 text-[#D4A574] rounded px-2 py-1">{ch}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Notes */}
-              {selectedSub.notes && (
-                <div className="mb-5">
-                  <div className="text-[12px] font-medium text-[#1A1A1A] mb-2">备注</div>
-                  <p className="text-[13px] text-[#4A4A4A]">{selectedSub.notes}</p>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-4 border-t border-[#E8E6E1]">
-                {selectedSub.status === 'pending' && (
-                  <>
-                    <button
-                      onClick={() => handleStatusChange(selectedSub.id, 'selected')}
-                      className="flex-1 py-2 bg-[#D4A574] text-white text-[13px] rounded-md hover:bg-[#C49564]"
-                    >
-                      选中
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(selectedSub.id, 'rejected')}
-                      className="flex-1 py-2 border border-[#E8E6E1] text-[#6B6B6B] text-[13px] rounded-md hover:bg-[#FAFAF8]"
-                    >
-                      不采用
-                    </button>
-                  </>
-                )}
-                {selectedSub.status === 'selected' && (
-                  <button
-                    onClick={() => handleStatusChange(selectedSub.id, 'in_progress')}
-                    className="flex-1 py-2 bg-[#D4A574] text-white text-[13px] rounded-md hover:bg-[#C49564]"
-                  >
-                    开始制作
-                  </button>
-                )}
-                {selectedSub.status === 'in_progress' && (
-                  <button
-                    onClick={() => handleStatusChange(selectedSub.id, 'published')}
-                    className="flex-1 py-2 bg-[#4A7C59] text-white text-[13px] rounded-md hover:bg-[#3A6C49]"
-                  >
-                    标记已发布
-                  </button>
-                )}
-                {selectedSub.status === 'published' && (
-                  <div className="flex-1 py-2 text-center text-[13px] text-[#4A7C59] bg-[#4A7C59]/10 rounded-md">
-                    已完成发布
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {selected && <div className="fixed inset-0 z-[70] flex justify-end bg-[#17232D]/22 backdrop-blur-[2px]" onMouseDown={event => { if (event.currentTarget === event.target) setSelected(null); }}><aside className="h-full w-full max-w-[460px] overflow-y-auto border-l border-[#E1E8ED] bg-white p-5 shadow-[-18px_0_50px_rgba(31,50,68,0.16)]"><div className="flex justify-between"><span className="rounded-lg px-2 py-1 text-[9px] font-semibold" style={{ color: statusDefinition[selected.status].color, backgroundColor: statusDefinition[selected.status].bg }}>{statusDefinition[selected.status].label}</span><button aria-label="关闭" onClick={() => setSelected(null)} className="flex h-8 w-8 items-center justify-center rounded-xl hover:bg-[#F1F4F7]"><X className="h-4 w-4"/></button></div><h2 className="mt-5 text-xl font-semibold leading-8 text-[#263640]">{selected.title}</h2><p className="mt-4 whitespace-pre-wrap text-[12px] leading-6 text-[#667985]">{selected.description || '暂无详情。'}</p><div className="mt-6 space-y-3 rounded-2xl bg-[#F7F9FB] p-4 text-[10px] text-[#60707D]"><Info icon={<UserRound/>} label="来源" value={`${selected.source_department} · ${selected.source_contact || '未填写'}`}/><Info icon={<CalendarDays/>} label="发生日期" value={selected.happened_at || '未填写'}/><Info icon={<MapPin/>} label="地点" value={selected.location || '未填写'}/><Info icon={<FileText/>} label="附件" value={selected.original_filename || '无'}/></div>{selected.tags.length > 0 && <div className="mt-5 flex flex-wrap gap-1.5">{selected.tags.map(tag => <span key={tag} className="rounded-lg bg-[#EEF2F5] px-2 py-1 text-[9px] text-[#657682]">#{tag}</span>)}</div>}<div className="mt-7 grid grid-cols-2 gap-2">{selected.status === 'pending' && <><button disabled={busyId === selected.id} onClick={() => void updateStatus(selected, 'selected')} className="flex h-10 items-center justify-center gap-2 rounded-xl border border-[#C9D3FA] text-xs font-semibold text-[#5267E8]"><Check className="h-4 w-4"/>选中</button><button disabled={busyId === selected.id} onClick={() => void updateStatus(selected, 'rejected')} className="h-10 rounded-xl border border-[#E5D7DB] text-xs font-semibold text-[#9A6470]">暂不采用</button></>}{(selected.status === 'pending' || selected.status === 'selected') && <button disabled={busyId === selected.id} onClick={() => void schedule(selected)} className="col-span-2 flex h-11 items-center justify-center gap-2 rounded-xl bg-[#5267E8] text-xs font-semibold text-white disabled:opacity-60">{busyId === selected.id ? <LoaderCircle className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}调度为选题与内容任务</button>}</div></aside></div>}
     </div>
   );
+}
+
+function MaterialCard({ item, onOpen }: { item: MaterialItem; onOpen: () => void }) {
+  return <button onClick={onOpen} className="w-full rounded-xl border border-[#E4EAEF] bg-white p-3.5 text-left shadow-[0_4px_14px_rgba(35,54,72,0.03)] transition hover:-translate-y-0.5 hover:border-[#C6D0F5]"><div className="flex items-start justify-between gap-3"><strong className="line-clamp-2 text-[11px] leading-5 text-[#34444E]">{item.title}</strong><span className="shrink-0 text-[9px] font-semibold" style={{ color: urgencyDefinition[item.urgency].color }}>{urgencyDefinition[item.urgency].label}</span></div><p className="mt-2 line-clamp-2 text-[9px] leading-4 text-[#81909B]">{item.description || '暂无描述'}</p><div className="mt-3 flex items-center justify-between text-[9px] text-[#8B9AA5]"><span className="truncate">{item.source_department}</span><span>{formatDate(item.created_at)}</span></div>{item.original_filename && <div className="mt-2 flex items-center gap-1 truncate text-[9px] text-[#5267E8]"><Paperclip className="h-3 w-3"/>{item.original_filename}</div>}</button>;
+}
+
+function Info({ icon, label, value }: { icon: React.ReactElement<{ className?: string }>; label: string; value: string }) {
+  return <div className="flex items-center gap-2"><span className="text-[#94A2AE]">{icon}</span><span>{label}</span><span className="ml-auto max-w-[230px] truncate font-semibold text-[#3F505B]">{value}</span></div>;
+}
+
+function Empty() {
+  return <div className="flex h-52 flex-col items-center justify-center text-center"><FileText className="h-7 w-7 text-[#AAB5BD]"/><p className="mt-3 text-xs font-semibold text-[#667985]">暂无素材</p><p className="mt-1 text-[10px] text-[#94A2AE]">点击“上报新素材”开始流程。</p></div>;
 }

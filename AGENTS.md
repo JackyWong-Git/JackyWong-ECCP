@@ -14,11 +14,13 @@
 
 ## 技术栈
 
-- **Framework**: Next.js 16 (App Router)
-- **Core**: React 19
-- **Language**: TypeScript 5
+- **Web**: Next.js 16 (App Router) + React 19 + TypeScript 5
 - **UI**: shadcn/ui + Tailwind CSS 4
-- **Styling**: 自定义设计系统（暖铜色调，编辑感风格）
+- **Business API**: FastAPI + SQLAlchemy 2 + Alembic
+- **Identity**: Django Auth（账号、Session、RBAC）
+- **Data**: PostgreSQL 17 + pgvector
+- **Async/Cache**: Redis
+- **Files**: S3-compatible object storage（本地 MinIO）
 
 ## 目录结构
 
@@ -38,6 +40,15 @@ src/
 │   ├── material-knowledge.tsx  # 素材知识库（资产沉淀 + AI赋能）
 │   ├── data-feedback.tsx       # 数据回流（效果追踪 + 选题优化）
 │   └── ui/                     # shadcn/ui 组件库
+
+services/api/
+├── app/                        # FastAPI、RAG、存储和任务 Worker
+├── alembic/                    # PostgreSQL/pgvector 迁移
+└── tests/                      # API 纵向集成测试
+
+backend/
+├── accounts/                   # Django 用户、权限和登录
+└── eccp_backend/               # Django 配置
 ```
 
 ## 核心模块
@@ -75,7 +86,18 @@ src/
 ## 开发命令
 
 ```bash
-pnpm dev      # 启动开发服务器
-pnpm build    # 构建生产版本
-pnpm start    # 启动生产服务器
+pnpm dev:all   # Next.js + Django + FastAPI
+pnpm infra:up  # PostgreSQL/pgvector + Redis + MinIO + API + Worker
+pnpm validate  # TypeScript + ESLint + Stylelint
+pnpm test:auth # Django 权限测试
+pnpm test:api  # FastAPI RAG 纵向测试
+pnpm build     # 构建生产版本
 ```
+
+## 边界规则
+
+- 浏览器只能请求 Next.js `/api/*`；不得直接携带内部签名调用 FastAPI。
+- Django 是账号与权限的唯一来源；FastAPI 只接受 Next.js 生成的短时 HMAC 身份头。
+- 原文件只进入对象存储；PostgreSQL 保存元数据、文本分块与向量，不保存大文件。
+- 生产环境必须关闭 `ECCP_API_AUTO_CREATE_SCHEMA`，使用 Alembic 迁移。
+- Redis 不可用时仅允许本地开发回退到 FastAPI BackgroundTasks；生产索引必须由 Worker 消费。
