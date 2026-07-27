@@ -75,7 +75,7 @@ async def seed_default_agents(session: AsyncSession) -> None:
             description=definition["description"],
             category=definition["category"],
             status=definition.get("status", "active"),
-            model_id="gpt-5.6-terra",
+            model_id="gpt-5.4",
             routing_keywords=definition["keywords"],
             business_keys=definition["businesses"],
             created_by_employee_id="system",

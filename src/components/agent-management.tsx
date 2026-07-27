@@ -90,7 +90,7 @@ const statusDefinition = {
   retest: { label: '待复测', tone: 'bg-[#FFF0ED] text-[#C65345]' },
 };
 
-const emptyForm = { name: '', description: '', category: 'content' as AgentCategory, model_id: 'gpt-5.6-terra', system_prompt: '' };
+const emptyForm = { name: '', description: '', category: 'content' as AgentCategory, model_id: 'gpt-5.4', system_prompt: '' };
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);

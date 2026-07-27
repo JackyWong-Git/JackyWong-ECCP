@@ -41,7 +41,7 @@ const initialConnections: ExternalConnection[] = [
   { id: '1', name: '飞书', description: '文档、表格、消息与审批能力', category: 'platform', status: 'connected', lastSync: '5 分钟前', config: { app_id: 'cli_xxx', scopes: 'docs,sheets,messages' }, agents: ['素材初筛 Agent', '复盘分析 Agent'] },
   { id: '2', name: '虾评平台', description: 'Skill 市场与内容分析能力', category: 'platform', status: 'connected', lastSync: '1 小时前', config: { api_key: '••••••••' }, agents: ['选题推荐 Agent'] },
   { id: '3', name: 'Agent World', description: '统一身份认证与 Agent 路由', category: 'platform', status: 'connected', lastSync: '实时', config: { sso_enabled: 'true' }, agents: [] },
-  { id: '4', name: 'Kudex LLM', description: 'GPT-5.6 Terra 等 OpenAI 兼容模型服务', category: 'model', status: 'connected', lastSync: '实时', config: { model: 'gpt-5.6-terra', api_key: '••••••••' }, agents: ['员工故事创作 Agent', '内容审核 Agent'] },
+  { id: '4', name: 'Kudex LLM', description: 'GPT-5.4 等 OpenAI 兼容模型服务', category: 'model', status: 'connected', lastSync: '实时', config: { model: 'gpt-5.4', api_key: '••••••••' }, agents: ['员工故事创作 Agent', '内容审核 Agent'] },
   { id: '5', name: 'Kimi', description: 'Moonshot Kimi 长文本模型', category: 'model', status: 'connected', lastSync: '实时', config: { model: 'kimi-k2', api_key: '••••••••' }, agents: ['素材初筛 Agent'] },
   { id: '6', name: 'OpenAI', description: '生成模型与 Embedding 服务', category: 'model', status: 'disconnected', config: { model: 'gpt-4.1' }, agents: [] },
   { id: '7', name: '飞书知识库', description: '企业知识库文档定时同步', category: 'data', status: 'connected', lastSync: '30 分钟前', config: { space_id: 'spc_xxx', sync_interval: '1h' }, agents: ['员工故事创作 Agent'] },

@@ -30,7 +30,7 @@ export async function createDeepSeekChatCompletion(input: {
   messages: DeepSeekMessage[];
   model?: string;
 }) {
-  const apiKey = (process.env.DEEPSEEK_API_KEY || process.env.LLM_API_KEY)?.trim();
+  const apiKey = (process.env.NEW_API_KEY || process.env.LLM_API_KEY || process.env.DEEPSEEK_API_KEY)?.trim();
   if (!apiKey) throw new DeepSeekConfigurationError('LLM API Key 尚未配置。');
 
   const model = input.model || LLM_DEFAULT_MODEL;
