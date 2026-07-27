@@ -1,6 +1,23 @@
 from django.contrib import admin
 
-from .models import UserProfile
+from .models import EmployeeDirectory, UserProfile
+
+
+@admin.register(EmployeeDirectory)
+class EmployeeDirectoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "full_name",
+        "employee_id",
+        "department",
+        "section",
+        "team",
+        "job_title",
+        "registration_enabled",
+        "claimed_by",
+    )
+    list_filter = ("registration_enabled", "is_active", "department")
+    search_fields = ("full_name", "employee_id", "department", "section", "team")
+    autocomplete_fields = ("claimed_by",)
 
 
 @admin.register(UserProfile)

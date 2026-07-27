@@ -3,24 +3,15 @@ import os
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from accounts.models import UserProfile
-
-
-MEMBER_PERMISSION_CODENAMES = {
-    "access_workspace",
-    "use_ai_assistant",
-    "create_content",
-    "manage_projects",
-    "view_tasks",
-    "view_topics",
-    "view_knowledge",
-    "view_analytics",
-}
-ADMIN_PERMISSION_CODENAMES = MEMBER_PERMISSION_CODENAMES | {"manage_platform"}
+from accounts.services import (
+    ADMIN_PERMISSION_CODENAMES,
+    MEMBER_PERMISSION_CODENAMES,
+    ensure_permission_group,
+)
 
 
 class Command(BaseCommand):
@@ -40,19 +31,8 @@ class Command(BaseCommand):
         if not users:
             raise CommandError("The enterprise culture user data is empty.")
 
-        member_group, _ = Group.objects.get_or_create(name="企业文化系成员")
-        admin_group, _ = Group.objects.get_or_create(name="ECCP 超级管理员")
-        permissions = Permission.objects.filter(
-            content_type__app_label="accounts",
-            codename__in=ADMIN_PERMISSION_CODENAMES,
-        )
-        permission_map = {permission.codename: permission for permission in permissions}
-        missing = ADMIN_PERMISSION_CODENAMES - permission_map.keys()
-        if missing:
-            raise CommandError(f"Missing ECCP permissions: {', '.join(sorted(missing))}. Run migrations first.")
-
-        member_group.permissions.set(permission_map[name] for name in MEMBER_PERMISSION_CODENAMES)
-        admin_group.permissions.set(permission_map[name] for name in ADMIN_PERMISSION_CODENAMES)
+        member_group = ensure_permission_group("企业文化系成员", MEMBER_PERMISSION_CODENAMES)
+        admin_group = ensure_permission_group("ECCP 超级管理员", ADMIN_PERMISSION_CODENAMES)
 
         user_model = get_user_model()
         managed_groups = [member_group, admin_group]

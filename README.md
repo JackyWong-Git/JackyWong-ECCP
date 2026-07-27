@@ -15,6 +15,7 @@ pnpm dev:all
 该命令会同时启动 Django 认证、FastAPI 业务服务与 Next.js 工作台：
 
 - 登录入口：[http://localhost:8000/accounts/login/](http://localhost:8000/accounts/login/)
+- 员工注册：[http://localhost:8000/accounts/register/](http://localhost:8000/accounts/register/)
 - ECCP 工作台：[http://localhost:5000](http://localhost:5000)
 - FastAPI 文档：[http://localhost:8100/docs](http://localhost:8100/docs)
 
@@ -35,7 +36,13 @@ pnpm test:auth
 
 # 首次导入企业文化系权限账号；管理员密码必须通过环境变量注入
 ECCP_SUPERUSER_PASSWORD='replace-with-secret' .venv/bin/python manage.py import_culture_users
+
+# 导入员工名册并开放员工自助注册；Excel 文件不要提交到 Git
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py import_employee_directory /secure/path/员工名册.xlsx
 ```
+
+员工注册采用“工号与姓名验证 → 确认组织信息 → 设置密码”的两步流程。验证凭证 10 分钟有效，同一工号只能绑定一个账号，注册成功后可直接使用工号登录。若仅允许企业文化系注册，可在导入命令后增加 `--registration-scope enterprise-culture`；使用 `--registration-scope none` 可只同步名册而暂不开放注册。
 
 阿里云生产环境建议在同一 HTTPS 域名下反向代理：`/accounts/*`、`/api/auth/*` 指向 Django，其余请求指向 Next.js。生产环境必须设置随机 `DJANGO_SECRET_KEY`、`DJANGO_SECURE_COOKIES=1`，并将 SQLite 替换为 PostgreSQL。
 

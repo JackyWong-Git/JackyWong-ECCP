@@ -258,6 +258,24 @@
       .submit-button:active { transform: translateY(0); }
       .submit-button svg { width: 16px; height: 16px; }
 
+      .register-prompt {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .register-prompt a {
+        color: var(--primary);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .register-prompt a:hover { text-decoration: underline; }
+
       .security-note { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; color: #8a9aa4; font-size: 10px; }
       .security-note svg { width: 13px; height: 13px; }
 
@@ -361,6 +379,11 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M14 7l5 5-5 5"/></svg>
               </button>
             </form>
+
+            <div class="register-prompt">
+              首次使用 ECCP？
+              <a href="{% url 'register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">验证员工身份并注册</a>
+            </div>
           </div>
 
           <div class="security-note">

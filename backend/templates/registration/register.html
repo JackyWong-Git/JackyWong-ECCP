@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>员工注册 | ECCP 企业文化内容创作平台</title>
+    <style>
+      :root {
+        --ink: #172b36;
+        --muted: #667985;
+        --line: #dfe8ee;
+        --primary: #5267e8;
+        --primary-dark: #4054cf;
+        --success: #158466;
+        --panel: rgb(255 255 255 / 94%);
+        --danger: #b6424a;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 14%, rgb(92 210 229 / 24%), transparent 28rem),
+          radial-gradient(circle at 86% 82%, rgb(91 104 232 / 19%), transparent 32rem),
+          #edf4f7;
+        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      button, input { font: inherit; }
+
+      .page-shell {
+        position: relative;
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        overflow: hidden;
+        padding: 24px;
+      }
+
+      .page-shell::before {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgb(74 106 127 / 13%) 1px, transparent 1px);
+        background-size: 26px 26px;
+        mask-image: linear-gradient(to bottom, black, transparent 86%);
+        content: "";
+      }
+
+      .register-frame {
+        position: relative;
+        display: grid;
+        width: min(1040px, 100%);
+        min-height: 650px;
+        grid-template-columns: minmax(320px, .78fr) minmax(430px, 1.22fr);
+        overflow: hidden;
+        border: 1px solid rgb(255 255 255 / 88%);
+        border-radius: 32px;
+        background: var(--panel);
+        box-shadow: 0 30px 90px rgb(28 53 69 / 16%), 0 2px 8px rgb(28 53 69 / 6%);
+        backdrop-filter: blur(18px);
+        animation: arrive .55s cubic-bezier(.22, 1, .36, 1) both;
+      }
+
+      .guide-panel {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        padding: 45px;
+        color: white;
+        background: linear-gradient(150deg, #334aa9, #5469df 58%, #45b9cf);
+      }
+
+      .guide-panel::after {
+        position: absolute;
+        width: 360px;
+        height: 360px;
+        right: -190px;
+        bottom: -120px;
+        border: 1px solid rgb(255 255 255 / 18%);
+        border-radius: 50%;
+        content: "";
+      }
+
+      .brand, .guide-copy, .trust-note { position: relative; z-index: 1; }
+      .brand { display: flex; align-items: center; gap: 12px; font-weight: 750; letter-spacing: .08em; }
+
+      .brand-mark {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 1px solid rgb(255 255 255 / 24%);
+        border-radius: 14px;
+        background: rgb(255 255 255 / 14%);
+      }
+
+      .brand-mark svg { width: 23px; height: 23px; }
+      .guide-copy h1 { margin: 0; font-family: "Noto Serif SC", "Songti SC", serif; font-size: 38px; line-height: 1.3; }
+      .guide-copy p { margin: 17px 0 0; color: rgb(255 255 255 / 72%); font-size: 13px; line-height: 1.9; }
+
+      .steps { display: grid; gap: 16px; margin-top: 30px; }
+      .step { display: flex; align-items: center; gap: 12px; color: rgb(255 255 255 / 58%); font-size: 12px; }
+      .step-number { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid rgb(255 255 255 / 22%); border-radius: 50%; font-size: 10px; }
+      .step.active { color: white; font-weight: 700; }
+      .step.active .step-number { border-color: white; color: #4054cf; background: white; }
+      .trust-note { color: rgb(255 255 255 / 62%); font-size: 10px; line-height: 1.7; }
+
+      .form-panel { display: flex; flex-direction: column; justify-content: center; padding: clamp(38px, 6vw, 72px); }
+      .back-link { width: fit-content; margin-bottom: 35px; color: var(--muted); font-size: 11px; font-weight: 650; text-decoration: none; }
+      .back-link:hover { color: var(--primary); }
+      .kicker { margin: 0 0 9px; color: var(--primary); font-size: 11px; font-weight: 750; letter-spacing: .13em; }
+      h2 { margin: 0; font-size: 28px; letter-spacing: -.04em; }
+      .intro { margin: 12px 0 27px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+      .employee-card {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px 18px;
+        margin-bottom: 24px;
+        padding: 16px 18px;
+        border: 1px solid #cfe9e1;
+        border-radius: 16px;
+        background: #f2fbf8;
+      }
+
+      .employee-card strong { font-size: 14px; }
+      .employee-card span { color: var(--muted); font-size: 11px; }
+      .verified { grid-row: 1 / 3; grid-column: 2; align-self: center; color: var(--success); font-size: 11px; font-weight: 750; }
+
+      .error-box {
+        margin: 0 0 18px;
+        padding: 11px 13px;
+        border: 1px solid #f0cfd2;
+        border-radius: 12px;
+        color: var(--danger);
+        background: #fff5f5;
+        font-size: 11px;
+        line-height: 1.6;
+      }
+
+      .field { margin-bottom: 17px; }
+      label { display: block; margin-bottom: 8px; color: #344955; font-size: 12px; font-weight: 650; }
+
+      input[type="text"], input[type="password"] {
+        width: 100%;
+        height: 50px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        outline: none;
+        padding: 0 16px;
+        color: var(--ink);
+        background: #f9fbfc;
+        font-size: 13px;
+        transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+      }
+
+      input:focus { border-color: #8695ed; background: white; box-shadow: 0 0 0 4px rgb(82 103 232 / 10%); }
+      input::placeholder { color: #a0adb6; }
+      .field-errors { margin-top: 7px; color: var(--danger); font-size: 10px; }
+
+      .agreement { display: flex; align-items: flex-start; gap: 8px; margin: 4px 0 20px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+      .agreement input { width: 15px; height: 15px; margin-top: 1px; accent-color: var(--primary); }
+
+      .submit-button {
+        display: flex;
+        width: 100%;
+        height: 50px;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border: 0;
+        border-radius: 14px;
+        color: white;
+        background: linear-gradient(110deg, var(--primary-dark), var(--primary) 56%, #567ee8);
+        box-shadow: 0 12px 26px rgb(82 103 232 / 25%);
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .submit-button:hover { transform: translateY(-1px); }
+      .helper { margin: 16px 0 0; color: #8999a4; font-size: 10px; line-height: 1.7; text-align: center; }
+
+      @keyframes arrive {
+        from { opacity: 0; transform: translateY(16px) scale(.99); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @media (max-width: 780px) {
+        .page-shell { padding: 14px; }
+        .register-frame { width: min(520px, 100%); min-height: auto; grid-template-columns: 1fr; border-radius: 25px; }
+        .guide-panel { padding: 28px; }
+        .guide-copy h1, .guide-copy p, .trust-note { display: none; }
+        .steps { grid-template-columns: 1fr 1fr; margin-top: 25px; }
+        .form-panel { min-height: 560px; padding: 35px 28px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="register-frame" aria-labelledby="register-title">
+        <aside class="guide-panel">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 18.2V8.8L12 4l7 4.8v9.4L12 22l-7-3.8Z"/><path d="m8.3 10.2 3.7 2.1 3.7-2.1M12 12.3v5.1"/></svg>
+            </span>
+            ECCP
+          </div>
+
+          <div class="guide-copy">
+            <h1>验证员工身份，开启文化协作。</h1>
+            <p>注册仅面向在职员工开放。平台会使用工号和姓名核验身份，不会在页面展示完整员工名册。</p>
+            <div class="steps">
+              <div class="step {% if step == 'verify' %}active{% endif %}"><span class="step-number">01</span>验证员工信息</div>
+              <div class="step {% if step == 'register' %}active{% endif %}"><span class="step-number">02</span>设置登录密码</div>
+            </div>
+          </div>
+
+          <div class="trust-note">员工信息仅用于企业身份核验与权限配置。注册成功后，工号即为登录账号。</div>
+        </aside>
+
+        <div class="form-panel">
+          <a class="back-link" href="{{ login_url }}{% if next %}?next={{ next|urlencode }}{% endif %}">← 返回登录</a>
+
+          {% if step == "register" %}
+            <p class="kicker">IDENTITY VERIFIED</p>
+            <h2 id="register-title">设置登录密码</h2>
+            <p class="intro">身份验证已通过。完成密码设置后将自动进入 ECCP。</p>
+
+            <div class="employee-card">
+              <strong>{{ employee.full_name }} · {{ employee.employee_id }}</strong>
+              <span>{{ employee.organization_label }}</span>
+              <span class="verified">已验证</span>
+            </div>
+
+            {% if registration_form.non_field_errors %}
+              <div class="error-box" role="alert">{{ registration_form.non_field_errors|striptags }}</div>
+            {% endif %}
+
+            <form method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="action" value="register">
+              <input type="hidden" name="verification_token" value="{{ verification_token }}">
+              {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+              <div class="field">
+                <label for="{{ registration_form.password1.id_for_label }}">设置密码</label>
+                {{ registration_form.password1 }}
+                {% if registration_form.password1.errors %}<div class="field-errors">{{ registration_form.password1.errors|striptags }}</div>{% endif %}
+              </div>
+
+              <div class="field">
+                <label for="{{ registration_form.password2.id_for_label }}">确认密码</label>
+                {{ registration_form.password2 }}
+                {% if registration_form.password2.errors %}<div class="field-errors">{{ registration_form.password2.errors|striptags }}</div>{% endif %}
+              </div>
+
+              <label class="agreement" for="{{ registration_form.agreement.id_for_label }}">
+                {{ registration_form.agreement }}
+                我已阅读并同意遵守企业信息安全与平台使用规范
+              </label>
+              {% if registration_form.agreement.errors %}<div class="field-errors">{{ registration_form.agreement.errors|striptags }}</div>{% endif %}
+
+              <button class="submit-button" type="submit">完成注册并进入 ECCP</button>
+            </form>
+            <p class="helper">验证结果 10 分钟内有效，超时后需要重新验证。</p>
+          {% else %}
+            <p class="kicker">EMPLOYEE VERIFICATION</p>
+            <h2 id="register-title">员工身份验证</h2>
+            <p class="intro">请输入工号和姓名。两项信息必须与企业员工名册完全一致。</p>
+
+            {% if verification_error %}
+              <div class="error-box" role="alert">{{ verification_error }}</div>
+            {% elif verification_form.non_field_errors %}
+              <div class="error-box" role="alert">{{ verification_form.non_field_errors|striptags }}</div>
+            {% endif %}
+
+            <form method="post" novalidate>
+              {% csrf_token %}
+              <input type="hidden" name="action" value="verify">
+              {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+              <div class="field">
+                <label for="{{ verification_form.employee_id.id_for_label }}">员工工号</label>
+                {{ verification_form.employee_id }}
+                {% if verification_form.employee_id.errors %}<div class="field-errors">{{ verification_form.employee_id.errors|striptags }}</div>{% endif %}
+              </div>
+
+              <div class="field">
+                <label for="{{ verification_form.full_name.id_for_label }}">员工姓名</label>
+                {{ verification_form.full_name }}
+                {% if verification_form.full_name.errors %}<div class="field-errors">{{ verification_form.full_name.errors|striptags }}</div>{% endif %}
+              </div>
+
+              <button class="submit-button" type="submit">验证员工身份</button>
+            </form>
+            <p class="helper">无法通过验证时，请先确认姓名用字或联系平台管理员。</p>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
