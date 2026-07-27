@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .models import Agent, AgentSkillBinding, AgentVersion, SkillInstallation, SkillPackage
+from .models import Agent, AgentSkillBinding, AgentVersion, AgentWorkflow, SkillInstallation, SkillPackage
 
 
 DEFAULT_AGENTS = [
@@ -120,6 +120,46 @@ async def seed_default_agents(session: AsyncSession) -> None:
                     required=False,
                     regression_status="passed",
                     bound_version=skill.installation.release.version if skill.installation else skill.latest_version,
+                )
+            )
+    existing_workflow = await session.scalar(select(AgentWorkflow.id).limit(1))
+    if not existing_workflow:
+        agents_by_slug = {
+            agent.slug: agent
+            for agent in (await session.scalars(select(Agent))).all()
+        }
+        story_agents = [
+            agents_by_slug[slug]
+            for slug in ("topic-planning", "employee-story", "content-review", "multi-channel")
+            if slug in agents_by_slug
+        ]
+        publish_agents = [
+            agents_by_slug[slug]
+            for slug in ("employee-story", "content-review", "multi-channel")
+            if slug in agents_by_slug
+        ]
+        if story_agents:
+            session.add(
+                AgentWorkflow(
+                    name="员工故事全流程",
+                    description="选题策划、故事创作、内容审核与多渠道适配的完整协作链。",
+                    collaboration_mode="planner_executor",
+                    agent_ids=[str(agent.id) for agent in story_agents],
+                    finalizer_enabled=True,
+                    created_by_employee_id="system",
+                    created_by_name="ECCP 系统",
+                )
+            )
+        if publish_agents:
+            session.add(
+                AgentWorkflow(
+                    name="多渠道内容适配",
+                    description="根据目标渠道动态选择创作、审核和发布能力。",
+                    collaboration_mode="router_specialists",
+                    agent_ids=[str(agent.id) for agent in publish_agents],
+                    finalizer_enabled=True,
+                    created_by_employee_id="system",
+                    created_by_name="ECCP 系统",
                 )
             )
     await session.commit()

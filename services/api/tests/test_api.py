@@ -404,6 +404,45 @@ def test_member_can_open_configure_and_use_agent_studio() -> None:
         assert run.json()["agent_id"] == selected["id"]
 
 
+def test_member_can_create_update_and_archive_agent_workflow() -> None:
+    headers = auth_headers(["accounts.use_ai_assistant"])
+    with TestClient(app) as client:
+        agents = client.get("/v1/agents", headers=headers).json()["items"]
+        agent_ids = [agents[0]["id"], agents[1]["id"]]
+
+        created = client.post(
+            "/v1/agent-workflows",
+            headers=headers,
+            json={
+                "name": "测试协作方案",
+                "description": "用于验证多 Agent 方案持久化。",
+                "collaboration_mode": "peer_handoff",
+                "agent_ids": agent_ids,
+                "finalizer_enabled": True,
+            },
+        )
+        assert created.status_code == 201
+        workflow_id = created.json()["id"]
+        assert [agent["id"] for agent in created.json()["agents"]] == agent_ids
+
+        listed = client.get("/v1/agent-workflows", headers=headers)
+        assert listed.status_code == 200
+        assert any(item["id"] == workflow_id for item in listed.json()["items"])
+
+        updated = client.patch(
+            f"/v1/agent-workflows/{workflow_id}",
+            headers=headers,
+            json={"collaboration_mode": "planner_executor", "name": "测试计划执行方案"},
+        )
+        assert updated.status_code == 200
+        assert updated.json()["collaboration_mode"] == "planner_executor"
+
+        archived = client.delete(f"/v1/agent-workflows/{workflow_id}", headers=headers)
+        assert archived.status_code == 204
+        missing = client.get(f"/v1/agent-workflows/{workflow_id}", headers=headers)
+        assert missing.status_code == 404
+
+
 def test_model_provider_requires_superuser_and_never_returns_plaintext(monkeypatch) -> None:
     async def fake_call_provider(**kwargs):
         assert kwargs["api_key"] == "unit-test-model-credential-1234"

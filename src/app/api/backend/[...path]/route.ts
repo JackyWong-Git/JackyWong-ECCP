@@ -31,6 +31,7 @@ function requiredPermission(method: string, path: string[]) {
     return 'accounts.manage_platform';
   }
   if (path[1] === 'agents') return 'accounts.use_ai_assistant';
+  if (path[1] === 'agent-workflows') return 'accounts.use_ai_assistant';
   if (path[1] === 'agent-runs') return 'accounts.use_ai_assistant';
   if (path[1] === 'model-providers') return 'accounts.manage_platform';
   if (path[1] === 'approvals') return 'accounts.create_content';

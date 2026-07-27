@@ -20,6 +20,11 @@ from ..agent_schemas import (
     AgentRunItem,
     AgentRunList,
     AgentUpdate,
+    AgentWorkflowAgentItem,
+    AgentWorkflowCreate,
+    AgentWorkflowItem,
+    AgentWorkflowList,
+    AgentWorkflowUpdate,
     AgentSkillItem,
     AgentSkillBindingsUpdate,
     AgentVersionCreate,
@@ -37,6 +42,7 @@ from ..models import (
     AgentRun,
     AgentSkillBinding,
     AgentVersion,
+    AgentWorkflow,
     Approval,
     Document,
     DocumentChunk,
@@ -220,6 +226,55 @@ def _run_item(run: AgentRun) -> AgentRunItem:
     )
 
 
+async def _workflow_item(session: AsyncSession, workflow: AgentWorkflow) -> AgentWorkflowItem:
+    requested_ids = [uuid.UUID(agent_id) for agent_id in workflow.agent_ids]
+    agents = (
+        await session.scalars(
+            select(Agent)
+            .where(Agent.id.in_(requested_ids))
+            .options(
+                selectinload(Agent.skill_bindings),
+                selectinload(Agent.knowledge_bindings),
+            )
+        )
+    ).unique().all()
+    agents_by_id = {agent.id: agent for agent in agents}
+    ordered_agents = [agents_by_id[agent_id] for agent_id in requested_ids if agent_id in agents_by_id]
+    return AgentWorkflowItem(
+        id=workflow.id,
+        name=workflow.name,
+        description=workflow.description,
+        collaboration_mode=workflow.collaboration_mode,
+        agent_ids=requested_ids,
+        agents=[
+            AgentWorkflowAgentItem(
+                id=agent.id,
+                name=agent.name,
+                category=agent.category,
+                status=agent.status,
+                skill_count=sum(1 for binding in agent.skill_bindings if binding.enabled),
+                knowledge_count=sum(1 for binding in agent.knowledge_bindings if binding.enabled),
+            )
+            for agent in ordered_agents
+        ],
+        finalizer_enabled=workflow.finalizer_enabled,
+        status=workflow.status,
+        created_by_name=workflow.created_by_name,
+        created_at=workflow.created_at,
+        updated_at=workflow.updated_at,
+    )
+
+
+async def _validate_workflow_agents(session: AsyncSession, agent_ids: list[uuid.UUID]) -> None:
+    if len(set(agent_ids)) != len(agent_ids):
+        raise HTTPException(status_code=422, detail="协作方案不能重复绑定同一个 Agent")
+    agents = (await session.scalars(select(Agent).where(Agent.id.in_(agent_ids)))).all()
+    if len(agents) != len(agent_ids):
+        raise HTTPException(status_code=409, detail="协作方案包含不存在的 Agent")
+    if any(agent.status == "inactive" for agent in agents):
+        raise HTTPException(status_code=409, detail="请先启用协作方案中的暂停 Agent")
+
+
 def _business_for(text: str) -> str:
     for key, patterns in BUSINESS_PATTERNS.items():
         if any(pattern in text for pattern in patterns):
@@ -306,6 +361,82 @@ async def create_agent_version(agent_id: uuid.UUID, payload: AgentVersionCreate,
     session.add(AgentVersion(agent_id=agent.id, version=agent.current_version, system_prompt=payload.system_prompt, config=payload.config, change_note=payload.change_note, created_by_employee_id=user.employeeId, created_by_name=user.displayName))
     await session.commit()
     return _agent_item(await _load_agent(session, agent.id))
+
+
+@router.get("/agent-workflows", response_model=AgentWorkflowList)
+async def list_agent_workflows(session: Session, user: User) -> AgentWorkflowList:
+    _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
+    workflows = (
+        await session.scalars(
+            select(AgentWorkflow)
+            .where(AgentWorkflow.status != "archived")
+            .order_by(AgentWorkflow.updated_at.desc())
+        )
+    ).all()
+    return AgentWorkflowList(
+        items=[await _workflow_item(session, workflow) for workflow in workflows],
+        total=len(workflows),
+    )
+
+
+@router.get("/agent-workflows/{workflow_id}", response_model=AgentWorkflowItem)
+async def get_agent_workflow(workflow_id: uuid.UUID, session: Session, user: User) -> AgentWorkflowItem:
+    _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
+    workflow = await session.get(AgentWorkflow, workflow_id)
+    if not workflow or workflow.status == "archived":
+        raise HTTPException(status_code=404, detail="协作方案不存在")
+    return await _workflow_item(session, workflow)
+
+
+@router.post("/agent-workflows", response_model=AgentWorkflowItem, status_code=status.HTTP_201_CREATED)
+async def create_agent_workflow(payload: AgentWorkflowCreate, session: Session, user: User) -> AgentWorkflowItem:
+    _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
+    await _validate_workflow_agents(session, payload.agent_ids)
+    workflow = AgentWorkflow(
+        name=payload.name,
+        description=payload.description,
+        collaboration_mode=payload.collaboration_mode,
+        agent_ids=[str(agent_id) for agent_id in payload.agent_ids],
+        finalizer_enabled=payload.finalizer_enabled,
+        created_by_employee_id=user.employeeId,
+        created_by_name=user.displayName,
+    )
+    session.add(workflow)
+    await session.commit()
+    await session.refresh(workflow)
+    return await _workflow_item(session, workflow)
+
+
+@router.patch("/agent-workflows/{workflow_id}", response_model=AgentWorkflowItem)
+async def update_agent_workflow(
+    workflow_id: uuid.UUID,
+    payload: AgentWorkflowUpdate,
+    session: Session,
+    user: User,
+) -> AgentWorkflowItem:
+    _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
+    workflow = await session.get(AgentWorkflow, workflow_id)
+    if not workflow or workflow.status == "archived":
+        raise HTTPException(status_code=404, detail="协作方案不存在")
+    changes = payload.model_dump(exclude_unset=True)
+    if agent_ids := changes.pop("agent_ids", None):
+        await _validate_workflow_agents(session, agent_ids)
+        workflow.agent_ids = [str(agent_id) for agent_id in agent_ids]
+    for key, value in changes.items():
+        setattr(workflow, key, value)
+    await session.commit()
+    await session.refresh(workflow)
+    return await _workflow_item(session, workflow)
+
+
+@router.delete("/agent-workflows/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_agent_workflow(workflow_id: uuid.UUID, session: Session, user: User) -> None:
+    _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
+    workflow = await session.get(AgentWorkflow, workflow_id)
+    if not workflow or workflow.status == "archived":
+        raise HTTPException(status_code=404, detail="协作方案不存在")
+    workflow.status = "archived"
+    await session.commit()
 
 
 @router.put("/agents/{agent_id}/skills", response_model=AgentItem)

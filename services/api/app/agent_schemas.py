@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -105,6 +106,60 @@ class AgentItem(BaseModel):
 
 class AgentList(BaseModel):
     items: list[AgentItem]
+    total: int
+
+
+CollaborationMode = Literal[
+    "single_agent_chat",
+    "router_specialists",
+    "planner_executor",
+    "supervisor_dynamic",
+    "peer_handoff",
+]
+
+
+class AgentWorkflowCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    description: str = Field(default="", max_length=2000)
+    collaboration_mode: CollaborationMode = "router_specialists"
+    agent_ids: list[uuid.UUID] = Field(min_length=1, max_length=6)
+    finalizer_enabled: bool = True
+
+
+class AgentWorkflowUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+    collaboration_mode: CollaborationMode | None = None
+    agent_ids: list[uuid.UUID] | None = Field(default=None, min_length=1, max_length=6)
+    finalizer_enabled: bool | None = None
+    status: Literal["active", "draft", "archived"] | None = None
+
+
+class AgentWorkflowAgentItem(BaseModel):
+    id: uuid.UUID
+    name: str
+    category: str
+    status: str
+    skill_count: int
+    knowledge_count: int
+
+
+class AgentWorkflowItem(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str
+    collaboration_mode: CollaborationMode
+    agent_ids: list[uuid.UUID]
+    agents: list[AgentWorkflowAgentItem]
+    finalizer_enabled: bool
+    status: str
+    created_by_name: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgentWorkflowList(BaseModel):
+    items: list[AgentWorkflowItem]
     total: int
 
 

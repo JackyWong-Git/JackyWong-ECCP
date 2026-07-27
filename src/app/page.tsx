@@ -5,7 +5,7 @@ import { Sidebar } from '@/components/sidebar';
 import { TopBar } from '@/components/top-bar';
 import { showToast, ToastContainer } from '@/components/toast';
 import { HomeComposer } from '@/components/home-composer';
-import { StudioMultiArtifact } from '@/components/studio-multi-artifact';
+import { CreationOrchestrationStudio } from '@/components/creation-orchestration-studio';
 import { DesignSystemManager } from '@/components/design-system-manager';
 import { AutomationPage } from '@/components/automation-page';
 import { CraftRules } from '@/components/craft-rules';
@@ -13,9 +13,7 @@ import { RequestIntake } from '@/components/request-intake';
 import { CampaignManager } from '@/components/campaign-manager';
 import { TopicsBoard } from '@/components/topics-board';
 import { ScriptEditor } from '@/components/script-editor';
-import { WorkflowBuilder } from '@/components/workflow-builder';
 import { AnalyticsDashboard } from '@/components/analytics-dashboard';
-import { AgentManagement } from '@/components/agent-management';
 import { SkillMarketplace } from '@/components/skill-marketplace';
 import { RAGKnowledgeBase } from '@/components/rag-knowledge-base';
 import { ExternalConnections } from '@/components/external-connections';
@@ -61,7 +59,7 @@ function AuthenticatedWorkspace() {
       case 'tasks':
         return <TaskCenter onNavigate={navigateTo} />;
       case 'studio':
-        return <StudioMultiArtifact />;
+        return <CreationOrchestrationStudio onNavigate={navigateTo} />;
       case 'design-system':
         return <DesignSystemManager />;
       case 'automation':
@@ -77,11 +75,11 @@ function AuthenticatedWorkspace() {
       case 'scripts':
         return <ScriptEditor />;
       case 'workflows':
-        return <WorkflowBuilder />;
+        return <CreationOrchestrationStudio onNavigate={navigateTo} initialTab="orchestration" />;
       case 'analytics':
         return <AnalyticsDashboard />;
       case 'agents':
-        return <AgentManagement />;
+        return <CreationOrchestrationStudio onNavigate={navigateTo} initialTab="agents" />;
       case 'skills':
         return <SkillMarketplace />;
       case 'knowledge':

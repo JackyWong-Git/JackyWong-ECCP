@@ -449,6 +449,22 @@ class AgentKnowledgeBinding(Base):
     knowledge_base: Mapped[KnowledgeBase] = relationship(back_populates="agent_bindings")
 
 
+class AgentWorkflow(Base):
+    __tablename__ = "agent_workflows"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(160), index=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    collaboration_mode: Mapped[str] = mapped_column(String(40), default="single_agent_chat", index=True)
+    agent_ids: Mapped[list[str]] = mapped_column(json_type, default=list)
+    finalizer_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    status: Mapped[str] = mapped_column(String(24), default="active", index=True)
+    created_by_employee_id: Mapped[str] = mapped_column(String(16), index=True)
+    created_by_name: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class AgentRun(Base):
     __tablename__ = "agent_runs"
     __table_args__ = (Index("ix_agent_runs_requester_created", "requested_by_employee_id", "created_at"),)

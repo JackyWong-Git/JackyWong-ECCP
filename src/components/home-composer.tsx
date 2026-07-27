@@ -310,7 +310,7 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
                 <span className="block text-[12px] font-semibold text-[#3446A8]">{isGenerating ? '正在路由 Agent、RAG 与 Skill' : activeRun ? `由 ${activeRun.agent_name} 承接 · ${activeRun.status === 'awaiting_approval' ? '等待审批' : '运行已记录'}` : '已生成待确认结果'}</span>
                 <span className="mt-0.5 block truncate text-[11px] text-[#6D79A7]">{isGenerating ? '任务会写入服务端运行记录，不再使用本地模拟计时。' : generatedTitle}</span>
               </span>
-              {!isGenerating ? <button type="button" onClick={() => onNavigate(activeRun?.approval ? 'agents' : 'tasks')} className="shrink-0 text-[11px] font-semibold text-[#5267E8]">{activeRun?.approval ? '进入工作室处理' : '查看结果'}</button> : null}
+              {!isGenerating ? <button type="button" onClick={() => onNavigate(activeRun?.approval ? 'studio' : 'tasks')} className="shrink-0 text-[11px] font-semibold text-[#5267E8]">{activeRun?.approval ? '进入编排室处理' : '查看结果'}</button> : null}
             </div>
           ) : null}
         </section>

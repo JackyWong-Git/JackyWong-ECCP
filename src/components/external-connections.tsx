@@ -217,7 +217,7 @@ export function ExternalConnections() {
 
                 <aside className="space-y-3">
                   <div className="rounded-2xl bg-[#F7F9FB] p-4"><span className="text-[9px] text-[#8A99A4]">连接类型</span><span className="mt-1 flex items-center gap-2 text-[11px] font-semibold text-[#455660]"><CategoryIcon className="h-3.5 w-3.5 text-[#5267E8]" />{categoryDefinition[selectedConnection.category].label}</span></div>
-                  <div className="rounded-2xl bg-[#F7F9FB] p-4"><span className="text-[9px] text-[#8A99A4]">使用此连接的 Agent</span><div className="mt-2 space-y-2">{selectedConnection.agents.length ? selectedConnection.agents.map(agent => <div key={agent} className="flex items-center gap-2 text-[10px] font-medium text-[#52636E]"><Bot className="h-3.5 w-3.5 text-[#687BEA]" />{agent}</div>) : <p className="text-[9px] leading-5 text-[#98A5AE]">暂未被 Agent 使用，可在 Agent 工作室中绑定。</p>}</div></div>
+                  <div className="rounded-2xl bg-[#F7F9FB] p-4"><span className="text-[9px] text-[#8A99A4]">使用此连接的 Agent</span><div className="mt-2 space-y-2">{selectedConnection.agents.length ? selectedConnection.agents.map(agent => <div key={agent} className="flex items-center gap-2 text-[10px] font-medium text-[#52636E]"><Bot className="h-3.5 w-3.5 text-[#687BEA]" />{agent}</div>) : <p className="text-[9px] leading-5 text-[#98A5AE]">暂未被 Agent 使用，可在创作编排室的 Agent 配置中绑定。</p>}</div></div>
                   <button type="button" onClick={deleteConnection} className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-semibold text-[#C44F55] hover:bg-[#FFF0F1]"><Trash2 className="h-3.5 w-3.5" />删除连接</button>
                 </aside>
               </div>

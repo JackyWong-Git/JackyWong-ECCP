@@ -36,12 +36,12 @@ const viewContext: Record<ViewType, { label: string; guidance: string; suggestio
     suggestions: ['检查今天需要处理的事项', '帮我规划一个跨模块任务'],
   },
   studio: {
-    label: '智能创作',
-    guidance: '帮助用户检索素材、完善选题、生成或改写内容，并说明后续审核发布步骤。',
-    suggestions: ['帮我优化当前创作思路', '检查内容是否适合多渠道发布'],
+    label: '创作编排室',
+    guidance: '帮助用户配置 Agent 与能力、选择协作模式、生成内容并理解运行 Trace 和审核发布步骤。',
+    suggestions: ['帮我选择合适的协作模式', '检查当前方案是否适合多渠道发布'],
   },
   agents: {
-    label: 'Agent 工作室',
+    label: '创作编排室 · Agent 配置',
     guidance: '帮助用户创建、配置、测试 Agent，并推荐合适的 Skill、RAG 和审批规则。',
     suggestions: ['帮我设计一个小红书 Agent', '检查当前 Agent 配置是否完整'],
   },
@@ -86,7 +86,7 @@ const viewContext: Record<ViewType, { label: string; guidance: string; suggestio
     suggestions: ['帮我搜索适合微信的 Skill', '如何判断 Skill 是否安全'],
   },
   workflows: {
-    label: '工作流编排',
+    label: '创作编排室 · 协作编排',
     guidance: '帮助用户设计节点、条件、审批和失败处理。',
     suggestions: ['帮我检查工作流断点', '设计一个审核发布流程'],
   },
@@ -239,7 +239,7 @@ export function GlobalAssistant({ currentView, onNavigate }: GlobalAssistantProp
                           </span>
                         ))}
                       </div>
-                      <button type="button" onClick={() => { setOpen(false); onNavigate('agents'); }} className="mt-3 flex items-center gap-1 text-[9px] font-semibold text-[#5267E8]">在 Agent 工作室查看完整运行 <ChevronRight className="h-3.5 w-3.5" /></button>
+                      <button type="button" onClick={() => { setOpen(false); onNavigate('studio'); }} className="mt-3 flex items-center gap-1 text-[9px] font-semibold text-[#5267E8]">在创作编排室查看完整运行 <ChevronRight className="h-3.5 w-3.5" /></button>
                     </div>
                   ) : null}
                 </div>
