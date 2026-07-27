@@ -8,12 +8,13 @@ from app.embeddings import local_hash_embedding
 from app.ingestion import split_text
 from app.main import app
 from app.routers import agents as agents_router
+from app.routers import model_providers as model_providers_router
 from app.routers import skills as skills_router
 from app.security import sign_internal_user
 from app.skill_discovery import DiscoveredSkill
 
 
-def auth_headers(permissions: list[str]) -> dict[str, str]:
+def auth_headers(permissions: list[str], *, is_superuser: bool = False) -> dict[str, str]:
     payload = {
         "id": 1,
         "username": "tester",
@@ -21,7 +22,7 @@ def auth_headers(permissions: list[str]) -> dict[str, str]:
         "employeeId": "0000001",
         "department": "人事总务部",
         "accessScope": "department",
-        "isSuperuser": False,
+        "isSuperuser": is_superuser,
         "permissions": permissions,
     }
     encoded = base64.urlsafe_b64encode(json.dumps(payload, ensure_ascii=False).encode()).decode().rstrip("=")
@@ -401,3 +402,71 @@ def test_member_can_open_configure_and_use_agent_studio() -> None:
         )
         assert run.status_code == 201
         assert run.json()["agent_id"] == selected["id"]
+
+
+def test_model_provider_requires_superuser_and_never_returns_plaintext(monkeypatch) -> None:
+    async def fake_call_provider(**kwargs):
+        assert kwargs["api_key"] == "unit-test-model-credential-1234"
+        return {
+            "model": kwargs["model"],
+            "choices": [{"message": {"content": "OK"}}],
+            "usage": {"total_tokens": 2},
+        }, 36
+
+    monkeypatch.setattr(model_providers_router, "_call_provider", fake_call_provider)
+    manager_headers = auth_headers(["accounts.manage_platform"])
+    admin_headers = auth_headers(["accounts.manage_platform", "accounts.use_ai_assistant"], is_superuser=True)
+    with TestClient(app) as client:
+        forbidden = client.get("/v1/model-providers", headers=manager_headers)
+        assert forbidden.status_code == 403
+
+        created = client.post(
+            "/v1/model-providers",
+            headers=admin_headers,
+            json={
+                "name": "测试 Kudex",
+                "provider_key": "kudex-test",
+                "base_url": "https://example.com/v1/chat/completions",
+                "default_model": "gpt-5.4",
+                "api_key": "unit-test-model-credential-1234",
+            },
+        )
+        assert created.status_code == 201
+        provider = created.json()
+        provider_id = provider["id"]
+        assert "unit-test-model-credential-1234" not in json.dumps(provider)
+        assert provider["api_key_masked"].endswith("1234")
+        assert provider["status"] == "untested"
+
+        blocked = client.post(
+            f"/v1/model-providers/{provider_id}/activate",
+            headers=admin_headers,
+            json={"apply_model_to_agents": True},
+        )
+        assert blocked.status_code == 409
+
+        tested = client.post(f"/v1/model-providers/{provider_id}/test", headers=admin_headers)
+        assert tested.status_code == 200
+        assert tested.json()["latency_ms"] == 36
+
+        activated = client.post(
+            f"/v1/model-providers/{provider_id}/activate",
+            headers=admin_headers,
+            json={"apply_model_to_agents": True},
+        )
+        assert activated.status_code == 200
+        assert activated.json()["is_default"] is True
+
+        chat = client.post(
+            "/v1/model-runtime/chat",
+            headers=admin_headers,
+            json={"messages": [{"role": "user", "content": "测试模型"}]},
+        )
+        assert chat.status_code == 200
+        assert chat.json()["content"] == "OK"
+        assert chat.json()["provider"] == "测试 Kudex"
+
+        listed = client.get("/v1/model-providers", headers=admin_headers)
+        assert listed.status_code == 200
+        serialized = json.dumps(listed.json(), ensure_ascii=False)
+        assert "unit-test-model-credential-1234" not in serialized

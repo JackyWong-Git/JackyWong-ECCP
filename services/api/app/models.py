@@ -349,6 +349,27 @@ class SkillAuditLog(Base):
     source: Mapped[SkillSource | None] = relationship(back_populates="audit_logs")
 
 
+class ModelProvider(Base):
+    __tablename__ = "model_providers"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider_key: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(120), index=True)
+    base_url: Mapped[str] = mapped_column(String(600))
+    default_model: Mapped[str] = mapped_column(String(120))
+    api_key_ciphertext: Mapped[str] = mapped_column(Text)
+    api_key_hint: Mapped[str] = mapped_column(String(24), default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    status: Mapped[str] = mapped_column(String(24), default="untested", index=True)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    last_tested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by_employee_id: Mapped[str] = mapped_column(String(16), index=True)
+    created_by_name: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Agent(Base):
     __tablename__ = "agents"
 

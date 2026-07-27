@@ -86,6 +86,7 @@ export async function POST(request: Request) {
       ? `\n\n以下是本次 RAG 检索到的可追溯资料，仅在相关时使用：\n${references.map((reference, index) => `[资料 ${index + 1}] ${reference.document}：${reference.content}`).join('\n')}`
       : '';
     const result = await createDeepSeekChatCompletion({
+      user,
       model: run.model_id,
       messages: [
         { role: 'system', content: `${run.system_prompt}${ragContext}` },

@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     const model = typeof body.model === 'string' ? body.model : undefined;
     const system = typeof body.system === 'string' ? body.system.trim().slice(0, 20_000) : '';
     const result = await createDeepSeekChatCompletion({
+      user: authentication.user,
       model,
       messages: system ? [{ role: 'system', content: system }, ...messages] : messages,
     });

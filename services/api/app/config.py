@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,6 +37,25 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 1536
     chunk_size: int = 1000
     chunk_overlap: int = 120
+    credential_encryption_key: str = ""
+    allow_private_model_endpoints: bool = False
+    llm_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "ECCP_API_LLM_API_KEY",
+            "NEW_API_KEY",
+            "LLM_API_KEY",
+            "DEEPSEEK_API_KEY",
+        ),
+    )
+    llm_base_url: str = Field(
+        default="https://api.deepseek.com/chat/completions",
+        validation_alias=AliasChoices("ECCP_API_LLM_BASE_URL", "LLM_BASE_URL"),
+    )
+    llm_model: str = Field(
+        default="deepseek-v4-pro",
+        validation_alias=AliasChoices("ECCP_API_LLM_MODEL", "LLM_MODEL"),
+    )
 
     @model_validator(mode="after")
     def resolve_project_paths(self):

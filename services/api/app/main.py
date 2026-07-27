@@ -8,6 +8,7 @@ from .database import SessionLocal, create_schema
 from .routers.agents import router as agents_router
 from .routers.health import router as health_router
 from .routers.knowledge import router as knowledge_router
+from .routers.model_providers import router as model_providers_router
 from .routers.skills import router as skills_router
 from .routers.workflow import router as workflow_router
 from .storage import storage
@@ -33,6 +34,7 @@ app = FastAPI(
 )
 app.include_router(health_router)
 app.include_router(knowledge_router)
+app.include_router(model_providers_router)
 app.include_router(workflow_router)
 app.include_router(skills_router)
 app.include_router(agents_router)

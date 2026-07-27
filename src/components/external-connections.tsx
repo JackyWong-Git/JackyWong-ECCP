@@ -5,14 +5,11 @@ import {
   CheckCircle2,
   Cloud,
   Database,
-  Link2,
-  Mail,
   MoreHorizontal,
   Plus,
   PlugZap,
   RefreshCw,
   Search,
-  Server,
   ShieldCheck,
   Trash2,
   Webhook,
@@ -21,6 +18,7 @@ import {
 import { type ComponentType, useDeferredValue, useState } from 'react';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { PlatformDialog } from './platform-dialog';
+import { ModelProviderSettings } from './model-provider-settings';
 import { showToast } from './toast';
 
 type ConnectionCategory = 'platform' | 'model' | 'data' | 'tool';
@@ -41,9 +39,6 @@ const initialConnections: ExternalConnection[] = [
   { id: '1', name: '飞书', description: '文档、表格、消息与审批能力', category: 'platform', status: 'connected', lastSync: '5 分钟前', config: { app_id: 'cli_xxx', scopes: 'docs,sheets,messages' }, agents: ['素材初筛 Agent', '复盘分析 Agent'] },
   { id: '2', name: '虾评平台', description: 'Skill 市场与内容分析能力', category: 'platform', status: 'connected', lastSync: '1 小时前', config: { api_key: '••••••••' }, agents: ['选题推荐 Agent'] },
   { id: '3', name: 'Agent World', description: '统一身份认证与 Agent 路由', category: 'platform', status: 'connected', lastSync: '实时', config: { sso_enabled: 'true' }, agents: [] },
-  { id: '4', name: 'Kudex LLM', description: 'GPT-5.4 等 OpenAI 兼容模型服务', category: 'model', status: 'connected', lastSync: '实时', config: { model: 'gpt-5.4', api_key: '••••••••' }, agents: ['员工故事创作 Agent', '内容审核 Agent'] },
-  { id: '5', name: 'Kimi', description: 'Moonshot Kimi 长文本模型', category: 'model', status: 'connected', lastSync: '实时', config: { model: 'kimi-k2', api_key: '••••••••' }, agents: ['素材初筛 Agent'] },
-  { id: '6', name: 'OpenAI', description: '生成模型与 Embedding 服务', category: 'model', status: 'disconnected', config: { model: 'gpt-4.1' }, agents: [] },
   { id: '7', name: '飞书知识库', description: '企业知识库文档定时同步', category: 'data', status: 'connected', lastSync: '30 分钟前', config: { space_id: 'spc_xxx', sync_interval: '1h' }, agents: ['员工故事创作 Agent'] },
   { id: '8', name: '飞书多维表格', description: '多维表格的数据读写能力', category: 'data', status: 'connected', lastSync: '10 分钟前', config: { table_id: 'tbl_xxx' }, agents: ['复盘分析 Agent'] },
   { id: '9', name: 'Webhook', description: '接收外部事件并触发工作流', category: 'tool', status: 'connected', lastSync: '12 分钟前', config: { url: 'https://hooks.example.com/eccp' }, agents: [] },
@@ -56,6 +51,7 @@ const categoryDefinition: Record<ConnectionCategory, { label: string; icon: Comp
   data: { label: '数据源', icon: Database },
   tool: { label: '工具', icon: Webhook },
 };
+const externalConnectionCategories: ConnectionCategory[] = ['platform', 'data', 'tool'];
 
 const statusDefinition: Record<ConnectionStatus, { label: string; color: string; bg: string }> = {
   connected: { label: '已连接', color: '#21865D', bg: '#EAF7F1' },
@@ -170,13 +166,17 @@ export function ExternalConnections() {
           })}
         </div>
 
+        <div className="mt-4">
+          <ModelProviderSettings />
+        </div>
+
         <div className="mt-4 grid gap-4 xl:grid-cols-[330px_minmax(0,1fr)]">
           <section className="surface-card h-fit overflow-hidden">
             <div className="border-b border-[#E8EDF1] p-3">
               <label className="flex h-10 items-center gap-2 rounded-xl border border-[#E1E8ED] bg-[#F8FAFC] px-3 focus-within:border-[#B8C4F5] focus-within:bg-white"><Search className="h-4 w-4 text-[#82919C]" /><input value={query} onChange={event => setQuery(event.target.value)} aria-label="搜索连接" placeholder="搜索连接名称或能力" className="min-w-0 flex-1 bg-transparent text-[11px] text-[#4D5E69] outline-none placeholder:text-[#9AA7B0]" /></label>
               <div className="no-scrollbar mt-2 flex gap-1 overflow-x-auto">
                 <button type="button" onClick={() => setCategory('all')} className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[9px] font-semibold ${category === 'all' ? 'bg-[#EEF1FF] text-[#5267E8]' : 'text-[#71818D] hover:bg-[#F2F5F7]'}`}>全部</button>
-                {(Object.keys(categoryDefinition) as ConnectionCategory[]).map(categoryId => <button key={categoryId} type="button" onClick={() => setCategory(categoryId)} className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[9px] font-semibold ${category === categoryId ? 'bg-[#EEF1FF] text-[#5267E8]' : 'text-[#71818D] hover:bg-[#F2F5F7]'}`}>{categoryDefinition[categoryId].label}</button>)}
+                {externalConnectionCategories.map(categoryId => <button key={categoryId} type="button" onClick={() => setCategory(categoryId)} className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[9px] font-semibold ${category === categoryId ? 'bg-[#EEF1FF] text-[#5267E8]' : 'text-[#71818D] hover:bg-[#F2F5F7]'}`}>{categoryDefinition[categoryId].label}</button>)}
               </div>
             </div>
             <div className="max-h-[600px] space-y-1 overflow-y-auto p-2">
@@ -230,7 +230,7 @@ export function ExternalConnections() {
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2"><span className="mb-1.5 block text-[10px] font-semibold text-[#60707D]">连接名称</span><input value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="例如：企业内容中台" className="h-10 w-full rounded-xl border border-[#DDE5EA] px-3 text-[11px] outline-none focus:border-[#AEBBF4]" /></label>
           <label className="sm:col-span-2"><span className="mb-1.5 block text-[10px] font-semibold text-[#60707D]">用途说明</span><input value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} placeholder="说明该连接可提供的能力" className="h-10 w-full rounded-xl border border-[#DDE5EA] px-3 text-[11px] outline-none focus:border-[#AEBBF4]" /></label>
-          <label><span className="mb-1.5 block text-[10px] font-semibold text-[#60707D]">连接类型</span><select value={form.category} onChange={event => setForm(current => ({ ...current, category: event.target.value as ConnectionCategory }))} className="h-10 w-full rounded-xl border border-[#DDE5EA] bg-white px-3 text-[11px] outline-none focus:border-[#AEBBF4]">{(Object.keys(categoryDefinition) as ConnectionCategory[]).map(item => <option key={item} value={item}>{categoryDefinition[item].label}</option>)}</select></label>
+          <label><span className="mb-1.5 block text-[10px] font-semibold text-[#60707D]">连接类型</span><select value={form.category} onChange={event => setForm(current => ({ ...current, category: event.target.value as ConnectionCategory }))} className="h-10 w-full rounded-xl border border-[#DDE5EA] bg-white px-3 text-[11px] outline-none focus:border-[#AEBBF4]">{externalConnectionCategories.map(item => <option key={item} value={item}>{categoryDefinition[item].label}</option>)}</select></label>
           <label><span className="mb-1.5 block text-[10px] font-semibold text-[#60707D]">服务地址</span><input value={form.endpoint} onChange={event => setForm(current => ({ ...current, endpoint: event.target.value }))} placeholder="https://api.example.com" className="h-10 w-full rounded-xl border border-[#DDE5EA] px-3 text-[11px] outline-none focus:border-[#AEBBF4]" /></label>
           <label className="sm:col-span-2"><span className="mb-1.5 block text-[10px] font-semibold text-[#60707D]">访问凭证</span><input type="password" value={form.credential} onChange={event => setForm(current => ({ ...current, credential: event.target.value }))} placeholder="输入 API Key 或访问令牌" className="h-10 w-full rounded-xl border border-[#DDE5EA] px-3 text-[11px] outline-none focus:border-[#AEBBF4]" /></label>
         </div>
