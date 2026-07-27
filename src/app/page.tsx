@@ -19,7 +19,7 @@ import { AgentManagement } from '@/components/agent-management';
 import { SkillMarketplace } from '@/components/skill-marketplace';
 import { RAGKnowledgeBase } from '@/components/rag-knowledge-base';
 import { ExternalConnections } from '@/components/external-connections';
-import { AssistantWorkspace } from '@/components/assistant-workspace';
+import { GlobalAssistant } from '@/components/global-assistant';
 import { TaskCenter } from '@/components/task-center';
 import { AuthGuard, useAuth } from '@/components/auth-guard';
 import { canAccessView, type ViewType } from '@/lib/access-control';
@@ -58,8 +58,6 @@ function AuthenticatedWorkspace() {
     switch (currentView) {
       case 'home':
         return <HomeComposer onNavigate={navigateTo} />;
-      case 'assistant':
-        return <AssistantWorkspace onNavigate={navigateTo} />;
       case 'tasks':
         return <TaskCenter onNavigate={navigateTo} />;
       case 'studio':
@@ -109,6 +107,7 @@ function AuthenticatedWorkspace() {
             {renderView()}
           </main>
         </div>
+        <GlobalAssistant currentView={currentView} onNavigate={navigateTo} />
         <ToastContainer />
     </div>
   );

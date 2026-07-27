@@ -41,7 +41,7 @@ const initialConnections: ExternalConnection[] = [
   { id: '1', name: '飞书', description: '文档、表格、消息与审批能力', category: 'platform', status: 'connected', lastSync: '5 分钟前', config: { app_id: 'cli_xxx', scopes: 'docs,sheets,messages' }, agents: ['素材初筛 Agent', '复盘分析 Agent'] },
   { id: '2', name: '虾评平台', description: 'Skill 市场与内容分析能力', category: 'platform', status: 'connected', lastSync: '1 小时前', config: { api_key: '••••••••' }, agents: ['选题推荐 Agent'] },
   { id: '3', name: 'Agent World', description: '统一身份认证与 Agent 路由', category: 'platform', status: 'connected', lastSync: '实时', config: { sso_enabled: 'true' }, agents: [] },
-  { id: '4', name: 'DeepSeek', description: 'DeepSeek V4 Pro / Flash 模型服务', category: 'model', status: 'connected', lastSync: '实时', config: { model: 'deepseek-v4-pro', fallback_model: 'deepseek-v4-flash', api_key: '••••••••' }, agents: ['员工故事创作 Agent', '内容审核 Agent'] },
+  { id: '4', name: 'Kudex LLM', description: 'GPT-5.6 Terra 等 OpenAI 兼容模型服务', category: 'model', status: 'connected', lastSync: '实时', config: { model: 'gpt-5.6-terra', api_key: '••••••••' }, agents: ['员工故事创作 Agent', '内容审核 Agent'] },
   { id: '5', name: 'Kimi', description: 'Moonshot Kimi 长文本模型', category: 'model', status: 'connected', lastSync: '实时', config: { model: 'kimi-k2', api_key: '••••••••' }, agents: ['素材初筛 Agent'] },
   { id: '6', name: 'OpenAI', description: '生成模型与 Embedding 服务', category: 'model', status: 'disconnected', config: { model: 'gpt-4.1' }, agents: [] },
   { id: '7', name: '飞书知识库', description: '企业知识库文档定时同步', category: 'data', status: 'connected', lastSync: '30 分钟前', config: { space_id: 'spc_xxx', sync_interval: '1h' }, agents: ['员工故事创作 Agent'] },
@@ -217,7 +217,7 @@ export function ExternalConnections() {
 
                 <aside className="space-y-3">
                   <div className="rounded-2xl bg-[#F7F9FB] p-4"><span className="text-[9px] text-[#8A99A4]">连接类型</span><span className="mt-1 flex items-center gap-2 text-[11px] font-semibold text-[#455660]"><CategoryIcon className="h-3.5 w-3.5 text-[#5267E8]" />{categoryDefinition[selectedConnection.category].label}</span></div>
-                  <div className="rounded-2xl bg-[#F7F9FB] p-4"><span className="text-[9px] text-[#8A99A4]">使用此连接的 Agent</span><div className="mt-2 space-y-2">{selectedConnection.agents.length ? selectedConnection.agents.map(agent => <div key={agent} className="flex items-center gap-2 text-[10px] font-medium text-[#52636E]"><Bot className="h-3.5 w-3.5 text-[#687BEA]" />{agent}</div>) : <p className="text-[9px] leading-5 text-[#98A5AE]">暂未被 Agent 使用，可在 Agent 管理中绑定。</p>}</div></div>
+                  <div className="rounded-2xl bg-[#F7F9FB] p-4"><span className="text-[9px] text-[#8A99A4]">使用此连接的 Agent</span><div className="mt-2 space-y-2">{selectedConnection.agents.length ? selectedConnection.agents.map(agent => <div key={agent} className="flex items-center gap-2 text-[10px] font-medium text-[#52636E]"><Bot className="h-3.5 w-3.5 text-[#687BEA]" />{agent}</div>) : <p className="text-[9px] leading-5 text-[#98A5AE]">暂未被 Agent 使用，可在 Agent 工作室中绑定。</p>}</div></div>
                   <button type="button" onClick={deleteConnection} className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[10px] font-semibold text-[#C44F55] hover:bg-[#FFF0F1]"><Trash2 className="h-3.5 w-3.5" />删除连接</button>
                 </aside>
               </div>

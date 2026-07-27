@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.embeddings import local_hash_embedding
 from app.ingestion import split_text
 from app.main import app
+from app.routers import agents as agents_router
 from app.routers import skills as skills_router
 from app.security import sign_internal_user
 from app.skill_discovery import DiscoveredSkill
@@ -43,6 +44,11 @@ def test_split_text_keeps_overlap() -> None:
     chunks = split_text("A" * 1800, size=1000, overlap=100)
     assert len(chunks) == 2
     assert chunks[0][-100:] == chunks[1][:100]
+
+
+def test_agent_business_routing_prioritizes_channel_then_story() -> None:
+    assert agents_router._business_for("根据采访素材整理员工故事") == "story"
+    assert agents_router._business_for("把员工故事发布到微信公众号") == "wechat"
 
 
 def test_knowledge_base_upload_and_search_flow() -> None:
@@ -276,3 +282,122 @@ def test_skill_discovery_install_binding_and_uninstall(monkeypatch) -> None:
         assert uninstalled.status_code == 204
         available = client.get(f"/v1/skills/{skill_id}", headers=headers)
         assert available.json()["status"] == "available"
+
+
+def test_agent_skill_route_and_high_risk_approval(monkeypatch) -> None:
+    async def fake_discovery(_url: str) -> list[DiscoveredSkill]:
+        return [
+            DiscoveredSkill(
+                owner="eccp-test",
+                repository="publisher-skills",
+                git_ref="main",
+                repository_url="https://github.com/eccp-test/publisher-skills",
+                skill_path="skills/wechat-publisher-test",
+                name="wechat-publisher-test",
+                description="发布微信公众号内容。",
+                version="1.0.0",
+                homepage="https://github.com/eccp-test/publisher-skills",
+                author="ECCP Test",
+                category="内容发布",
+                commit_sha="def456",
+                checksum="1" * 64,
+                capabilities=["微信公众号发布"],
+                required_env=[],
+                required_bins=[],
+                suggested_businesses=["wechat"],
+                risk_level="high",
+                risk_findings=[{"code": "external_publish", "title": "外部发布", "detail": "需要人工审批。", "severity": "high"}],
+                deprecated_by="",
+                manifest={"name": "wechat-publisher-test", "version": "1.0.0"},
+            )
+        ]
+
+    monkeypatch.setattr(skills_router, "discover_github_skills", fake_discovery)
+    headers = auth_headers(["accounts.manage_platform", "accounts.use_ai_assistant", "accounts.create_content"])
+    with TestClient(app) as client:
+        discovered = client.post(
+            "/v1/skills/discover",
+            headers=headers,
+            json={"url": "https://github.com/eccp-test/publisher-skills/tree/main/skills/wechat-publisher-test"},
+        )
+        assert discovered.status_code == 200
+        skill_id = discovered.json()["items"][0]["id"]
+        installed = client.post(
+            f"/v1/skills/{skill_id}/install",
+            headers=headers,
+            json={
+                "accept_risk": True,
+                "bindings": [{"business_key": "wechat", "business_name": "微信公众号", "enabled": True, "config": {}}],
+            },
+        )
+        assert installed.status_code == 200
+
+        agents = client.get("/v1/agents", headers=headers)
+        assert agents.status_code == 200
+        multichannel = next(item for item in agents.json()["items"] if item["slug"] == "multi-channel")
+        bound = client.put(
+            f"/v1/agents/{multichannel['id']}/skills",
+            headers=headers,
+            json={"bindings": [{"skill_id": skill_id, "enabled": True, "required": False}]},
+        )
+        assert bound.status_code == 200
+        assert bound.json()["skill_bindings"][0]["name"] == "wechat-publisher-test"
+
+        created = client.post(
+            "/v1/agent-runs",
+            headers=headers,
+            json={"input_text": "把这篇员工故事发布到微信公众号", "source": "assistant"},
+        )
+        assert created.status_code == 201
+        assert created.json()["agent_name"] == "多渠道适配 Agent"
+        assert created.json()["approval"]["status"] == "pending"
+        run_id = created.json()["id"]
+
+        completed = client.post(
+            f"/v1/agent-runs/{run_id}/complete",
+            headers=headers,
+            json={"success": True, "output_text": "已生成公众号发布稿，尚未发布。"},
+        )
+        assert completed.status_code == 200
+        assert completed.json()["status"] == "awaiting_approval"
+
+        approved = client.post(
+            f"/v1/approvals/{completed.json()['approval']['id']}/decision",
+            headers=headers,
+            json={"decision": "approved", "note": "内容审核通过"},
+        )
+        assert approved.status_code == 200
+        assert approved.json()["status"] == "ready_for_execution"
+        assert any(step["status"] == "pending" for step in approved.json()["steps"] if step["step_type"] == "skill")
+
+
+def test_member_can_open_configure_and_use_agent_studio() -> None:
+    headers = auth_headers(["accounts.use_ai_assistant"])
+    with TestClient(app) as client:
+        agents = client.get("/v1/agents", headers=headers)
+        assert agents.status_code == 200
+        selected = agents.json()["items"][0]
+
+        updated = client.post(
+            f"/v1/agents/{selected['id']}/versions",
+            headers=headers,
+            json={
+                "system_prompt": f"{selected['current_prompt']}\n测试成员可在 Agent 工作室创建新版本。",
+                "change_note": "成员配置权限测试",
+                "config": {},
+            },
+        )
+        assert updated.status_code == 200
+        assert updated.json()["current_version"] == selected["current_version"] + 1
+
+        run = client.post(
+            "/v1/agent-runs",
+            headers=headers,
+            json={
+                "agent_id": selected["id"],
+                "input_text": "测试当前 Agent 是否可以正常承接任务",
+                "source": "test",
+            },
+        )
+        assert run.status_code == 201
+        assert run.json()["agent_id"] == selected["id"]

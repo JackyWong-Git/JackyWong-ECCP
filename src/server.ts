@@ -1,8 +1,26 @@
+import { config } from 'dotenv';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 
-const dev = process.env.COZE_PROJECT_ENV !== 'PROD';
+// Treat either standard Node or platform-specific production values as production.
+const nodeEnvironment = process.env.NODE_ENV?.trim().toLowerCase();
+const projectEnvironment = process.env.COZE_PROJECT_ENV?.trim().toLowerCase();
+const dev =
+  nodeEnvironment !== 'production' &&
+  projectEnvironment !== 'production' &&
+  projectEnvironment !== 'prod';
+if (!dev) {
+  const envPath = resolve(process.cwd(), '.env.production');
+  if (existsSync(envPath)) {
+    config({ path: envPath });
+  } else {
+    config(); // fallback to .env
+  }
+}
+
 const hostname = process.env.HOSTNAME || 'localhost';
 const port = parseInt(process.env.PORT || '5000', 10);
 
@@ -28,7 +46,7 @@ app.prepare().then(() => {
   server.listen(port, () => {
     console.log(
       `> Server listening at http://${hostname}:${port} as ${
-        dev ? 'development' : process.env.COZE_PROJECT_ENV
+        dev ? 'development' : 'production'
       }`,
     );
   });

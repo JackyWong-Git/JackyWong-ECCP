@@ -97,6 +97,7 @@ class SkillItem(BaseModel):
     installation: SkillInstallationItem | None
     bindings: list[SkillBindingItem]
     releases: list[SkillReleaseItem]
+    affected_agents: list[dict]
     created_at: datetime
     updated_at: datetime
 

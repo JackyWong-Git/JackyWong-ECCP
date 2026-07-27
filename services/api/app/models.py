@@ -26,6 +26,7 @@ class KnowledgeBase(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     documents: Mapped[list["Document"]] = relationship(back_populates="knowledge_base", cascade="all, delete-orphan")
+    agent_bindings: Mapped[list["AgentKnowledgeBinding"]] = relationship(back_populates="knowledge_base", cascade="all, delete-orphan")
 
 
 class Document(Base):
@@ -275,6 +276,7 @@ class SkillPackage(Base):
     installation: Mapped["SkillInstallation | None"] = relationship(back_populates="skill", cascade="all, delete-orphan", uselist=False)
     bindings: Mapped[list["SkillBinding"]] = relationship(back_populates="skill", cascade="all, delete-orphan")
     audit_logs: Mapped[list["SkillAuditLog"]] = relationship(back_populates="skill")
+    agent_bindings: Mapped[list["AgentSkillBinding"]] = relationship(back_populates="skill", cascade="all, delete-orphan")
 
 
 class SkillRelease(Base):
@@ -345,3 +347,152 @@ class SkillAuditLog(Base):
 
     skill: Mapped[SkillPackage | None] = relationship(back_populates="audit_logs")
     source: Mapped[SkillSource | None] = relationship(back_populates="audit_logs")
+
+
+class Agent(Base):
+    __tablename__ = "agents"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(160), index=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    category: Mapped[str] = mapped_column(String(40), default="content", index=True)
+    status: Mapped[str] = mapped_column(String(24), default="active", index=True)
+    model_id: Mapped[str] = mapped_column(String(80), default="deepseek-v4-pro")
+    routing_keywords: Mapped[list[str]] = mapped_column(json_type, default=list)
+    business_keys: Mapped[list[str]] = mapped_column(json_type, default=list)
+    current_version: Mapped[int] = mapped_column(Integer, default=1)
+    run_count: Mapped[int] = mapped_column(Integer, default=0)
+    success_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    created_by_employee_id: Mapped[str] = mapped_column(String(16), index=True)
+    created_by_name: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    versions: Mapped[list["AgentVersion"]] = relationship(back_populates="agent", cascade="all, delete-orphan")
+    skill_bindings: Mapped[list["AgentSkillBinding"]] = relationship(back_populates="agent", cascade="all, delete-orphan")
+    knowledge_bindings: Mapped[list["AgentKnowledgeBinding"]] = relationship(back_populates="agent", cascade="all, delete-orphan")
+    runs: Mapped[list["AgentRun"]] = relationship(back_populates="agent")
+
+
+class AgentVersion(Base):
+    __tablename__ = "agent_versions"
+    __table_args__ = (UniqueConstraint("agent_id", "version", name="uq_agent_versions_agent_version"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    system_prompt: Mapped[str] = mapped_column(Text)
+    config: Mapped[dict] = mapped_column(json_type, default=dict)
+    change_note: Mapped[str] = mapped_column(String(300), default="")
+    created_by_employee_id: Mapped[str] = mapped_column(String(16), index=True)
+    created_by_name: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    agent: Mapped[Agent] = relationship(back_populates="versions")
+    runs: Mapped[list["AgentRun"]] = relationship(back_populates="agent_version")
+
+
+class AgentSkillBinding(Base):
+    __tablename__ = "agent_skill_bindings"
+    __table_args__ = (UniqueConstraint("agent_id", "skill_id", name="uq_agent_skill_bindings_agent_skill"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"), index=True)
+    skill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("skill_packages.id", ondelete="CASCADE"), index=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    required: Mapped[bool] = mapped_column(Boolean, default=False)
+    regression_status: Mapped[str] = mapped_column(String(24), default="passed", index=True)
+    bound_version: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    agent: Mapped[Agent] = relationship(back_populates="skill_bindings")
+    skill: Mapped[SkillPackage] = relationship(back_populates="agent_bindings")
+
+
+class AgentKnowledgeBinding(Base):
+    __tablename__ = "agent_knowledge_bindings"
+    __table_args__ = (UniqueConstraint("agent_id", "knowledge_base_id", name="uq_agent_knowledge_bindings_agent_kb"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"), index=True)
+    knowledge_base_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("knowledge_bases.id", ondelete="CASCADE"), index=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    top_k: Mapped[int] = mapped_column(Integer, default=4)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    agent: Mapped[Agent] = relationship(back_populates="knowledge_bindings")
+    knowledge_base: Mapped[KnowledgeBase] = relationship(back_populates="agent_bindings")
+
+
+class AgentRun(Base):
+    __tablename__ = "agent_runs"
+    __table_args__ = (Index("ix_agent_runs_requester_created", "requested_by_employee_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agents.id", ondelete="RESTRICT"), index=True)
+    agent_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_versions.id", ondelete="RESTRICT"), index=True)
+    source: Mapped[str] = mapped_column(String(24), default="assistant", index=True)
+    input_text: Mapped[str] = mapped_column(Text)
+    output_text: Mapped[str] = mapped_column(Text, default="")
+    business_key: Mapped[str] = mapped_column(String(80), default="general", index=True)
+    status: Mapped[str] = mapped_column(String(32), default="running", index=True)
+    route_reason: Mapped[str] = mapped_column(Text, default="")
+    model_id: Mapped[str] = mapped_column(String(80), default="deepseek-v4-pro")
+    conversation_id: Mapped[str] = mapped_column(String(120), default="", index=True)
+    error_message: Mapped[str] = mapped_column(Text, default="")
+    requested_by_employee_id: Mapped[str] = mapped_column(String(16), index=True)
+    requested_by_name: Mapped[str] = mapped_column(String(80), default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    agent: Mapped[Agent] = relationship(back_populates="runs")
+    agent_version: Mapped[AgentVersion] = relationship(back_populates="runs")
+    steps: Mapped[list["RunStep"]] = relationship(back_populates="run", cascade="all, delete-orphan")
+    approval: Mapped["Approval | None"] = relationship(back_populates="run", cascade="all, delete-orphan", uselist=False)
+
+
+class RunStep(Base):
+    __tablename__ = "run_steps"
+    __table_args__ = (UniqueConstraint("run_id", "ordinal", name="uq_run_steps_run_ordinal"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_runs.id", ondelete="CASCADE"), index=True)
+    ordinal: Mapped[int] = mapped_column(Integer)
+    step_type: Mapped[str] = mapped_column(String(32), index=True)
+    name: Mapped[str] = mapped_column(String(180))
+    status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    skill_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("skill_packages.id", ondelete="SET NULL"), nullable=True, index=True)
+    knowledge_base_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("knowledge_bases.id", ondelete="SET NULL"), nullable=True, index=True)
+    input_summary: Mapped[str] = mapped_column(Text, default="")
+    output_summary: Mapped[str] = mapped_column(Text, default="")
+    step_metadata: Mapped[dict] = mapped_column(json_type, default=dict)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    run: Mapped[AgentRun] = relationship(back_populates="steps")
+
+
+class Approval(Base):
+    __tablename__ = "approvals"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agent_runs.id", ondelete="CASCADE"), unique=True, index=True)
+    approval_type: Mapped[str] = mapped_column(String(40), default="high_risk_skill", index=True)
+    status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    requested_by_employee_id: Mapped[str] = mapped_column(String(16), index=True)
+    requested_by_name: Mapped[str] = mapped_column(String(80), default="")
+    reviewed_by_employee_id: Mapped[str] = mapped_column(String(16), default="", index=True)
+    reviewed_by_name: Mapped[str] = mapped_column(String(80), default="")
+    review_note: Mapped[str] = mapped_column(Text, default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    run: Mapped[AgentRun] = relationship(back_populates="approval")

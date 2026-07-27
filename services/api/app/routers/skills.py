@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..database import get_session
-from ..models import SkillAuditLog, SkillBinding, SkillInstallation, SkillPackage, SkillRelease, SkillSource
+from ..models import AgentSkillBinding, SkillAuditLog, SkillBinding, SkillInstallation, SkillPackage, SkillRelease, SkillSource
 from ..security import InternalUser, get_internal_user, require_permission
 from ..skill_discovery import DiscoveredSkill, SkillDiscoveryError, discover_github_skills, parse_github_url
 from ..skill_schemas import (
@@ -70,6 +70,7 @@ def _skill_options():
         selectinload(SkillPackage.releases),
         selectinload(SkillPackage.installation).selectinload(SkillInstallation.release),
         selectinload(SkillPackage.bindings),
+        selectinload(SkillPackage.agent_bindings).selectinload(AgentSkillBinding.agent),
     )
 
 
@@ -151,6 +152,15 @@ def _skill_item(skill: SkillPackage) -> SkillItem:
             )
             for release in sorted(skill.releases, key=lambda item: item.discovered_at, reverse=True)
         ],
+        affected_agents=[
+            {
+                "id": str(binding.agent_id),
+                "name": binding.agent.name,
+                "status": binding.agent.status,
+                "regression_status": binding.regression_status,
+            }
+            for binding in sorted(skill.agent_bindings, key=lambda item: item.agent.name)
+        ],
         created_at=skill.created_at,
         updated_at=skill.updated_at,
     )
@@ -212,6 +222,14 @@ async def _upsert_bindings(session: AsyncSession, skill: SkillPackage, bindings:
             binding.config = payload.config
         else:
             session.add(SkillBinding(skill_id=skill.id, **payload.model_dump()))
+
+
+def _mark_agents_for_retest(skill: SkillPackage, version: str) -> None:
+    for binding in skill.agent_bindings:
+        binding.regression_status = "pending"
+        binding.bound_version = version
+        if binding.agent.status == "active":
+            binding.agent.status = "retest"
 
 
 async def _store_discovered(
@@ -448,6 +466,10 @@ async def uninstall_skill(skill_id: uuid.UUID, session: Session, user: User) -> 
     await session.delete(skill.installation)
     for binding in skill.bindings:
         await session.delete(binding)
+    for binding in skill.agent_bindings:
+        if binding.agent.status == "active":
+            binding.agent.status = "retest"
+        await session.delete(binding)
     _audit(session, user, "uninstalled", f"卸载 {skill.name} 并解除业务绑定", skill=skill)
     await session.commit()
 
@@ -494,6 +516,7 @@ async def update_skill(skill_id: uuid.UUID, payload: SkillUpdateRequest, session
     previous_version = skill.installation.release.version
     skill.installation.release_id = release.id
     skill.installation.release = release
+    _mark_agents_for_retest(skill, release.version)
     _audit(
         session,
         user,
@@ -520,6 +543,7 @@ async def rollback_skill(skill_id: uuid.UUID, payload: SkillRollbackRequest, ses
     previous_version = skill.installation.release.version
     skill.installation.release_id = release.id
     skill.installation.release = release
+    _mark_agents_for_retest(skill, release.version)
     _audit(
         session,
         user,

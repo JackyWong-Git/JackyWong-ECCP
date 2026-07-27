@@ -1,6 +1,10 @@
-export const DEEPSEEK_MODELS = ['deepseek-v4-pro', 'deepseek-v4-flash'] as const;
+const DEFAULT_BASE_URL = 'https://api.deepseek.com/chat/completions';
+const DEFAULT_MODEL = 'deepseek-v4-pro';
 
-export type DeepSeekModel = typeof DEEPSEEK_MODELS[number];
+export const LLM_BASE_URL = process.env.LLM_BASE_URL?.trim() || DEFAULT_BASE_URL;
+export const LLM_DEFAULT_MODEL = process.env.LLM_MODEL?.trim() || DEFAULT_MODEL;
+
+export type DeepSeekModel = string;
 
 export interface DeepSeekMessage {
   role: 'system' | 'user' | 'assistant';
@@ -24,16 +28,14 @@ export class DeepSeekRequestError extends Error {
 
 export async function createDeepSeekChatCompletion(input: {
   messages: DeepSeekMessage[];
-  model?: DeepSeekModel;
+  model?: string;
 }) {
-  const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
-  if (!apiKey) throw new DeepSeekConfigurationError('DeepSeek API Key 尚未配置。');
+  const apiKey = (process.env.DEEPSEEK_API_KEY || process.env.LLM_API_KEY)?.trim();
+  if (!apiKey) throw new DeepSeekConfigurationError('LLM API Key 尚未配置。');
 
-  const configuredModel = process.env.DEEPSEEK_MODEL?.trim();
-  const model = input.model
-    ?? (DEEPSEEK_MODELS.includes(configuredModel as DeepSeekModel) ? configuredModel as DeepSeekModel : 'deepseek-v4-pro');
+  const model = input.model || LLM_DEFAULT_MODEL;
 
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
+  const response = await fetch(LLM_BASE_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -51,11 +53,11 @@ export async function createDeepSeekChatCompletion(input: {
 
   const data = await response.json() as DeepSeekResponse;
   if (!response.ok) {
-    throw new DeepSeekRequestError(data.error?.message || 'DeepSeek 服务暂时不可用。', response.status);
+    throw new DeepSeekRequestError(data.error?.message || 'LLM 服务暂时不可用。', response.status);
   }
 
   const content = data.choices?.[0]?.message?.content?.trim();
-  if (!content) throw new DeepSeekRequestError('DeepSeek 未返回有效内容。', 502);
+  if (!content) throw new DeepSeekRequestError('LLM 未返回有效内容。', 502);
 
   return {
     content,

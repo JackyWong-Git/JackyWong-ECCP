@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { type ChangeEvent, type ComponentType, useEffect, useRef, useState } from 'react';
 import { type ViewType } from '@/lib/access-control';
+import { executeAgentTask, type AgentRun } from '@/lib/agent-runtime';
 import { useAuth } from '@/components/auth-guard';
 import { showToast } from './toast';
 
@@ -104,9 +105,9 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
   const [isListening, setIsListening] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTitle, setGeneratedTitle] = useState('');
+  const [activeRun, setActiveRun] = useState<AgentRun | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const completionTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const cached = window.localStorage.getItem(STORAGE_KEY);
@@ -126,10 +127,6 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ brief, knowledgeEnabled, webEnabled, mode }));
   }, [brief, knowledgeEnabled, mode, webEnabled]);
 
-  useEffect(() => () => {
-    if (completionTimerRef.current) window.clearTimeout(completionTimerRef.current);
-  }, []);
-
   const applyQuickTask = (prompt: string) => {
     setBrief(prompt);
     inputRef.current?.focus();
@@ -143,7 +140,7 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
     event.target.value = '';
   };
 
-  const startWork = () => {
+  const startWork = async () => {
     const content = brief.trim();
     if (!content) {
       inputRef.current?.focus();
@@ -154,21 +151,32 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
 
     setIsGenerating(true);
     setGeneratedTitle('');
-    completionTimerRef.current = window.setTimeout(() => {
+    setActiveRun(null);
+    try {
+      const result = await executeAgentTask({
+        source: 'home',
+        input_text: fileNames.length ? `${content}\n\n附件：${fileNames.join('、')}` : content,
+        knowledge_enabled: knowledgeEnabled,
+        web_enabled: webEnabled,
+      });
       const title = content.length > 26 ? `${content.slice(0, 26)}…` : content;
-      setGeneratedTitle(title);
-      setIsGenerating(false);
+      setGeneratedTitle(result.content.slice(0, 80));
+      setActiveRun(result.run);
       const generatedTask: WorkTask = {
-        id: `task-${Date.now()}`,
+        id: result.run.id,
         title,
-        project: mode,
+        project: result.run.agent_name,
         due: '刚刚创建',
-        status: 'review',
+        status: result.run.status === 'completed' ? 'review' : 'todo',
         priority: 'normal',
       };
       setTasks(current => [generatedTask, ...current].slice(0, 4));
-      showToast('AI 已完成任务识别，并创建待确认结果', 'success');
-    }, 1100);
+      showToast(`已由 ${result.run.agent_name} 完成并写入运行记录`, 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Agent 执行失败', 'error');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const toggleTask = (taskId: string) => {
@@ -299,10 +307,10 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
                 {isGenerating ? <Sparkles className="h-[17px] w-[17px] animate-pulse" /> : <Check className="h-[17px] w-[17px]" />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-semibold text-[#3446A8]">{isGenerating ? '正在识别任务并匹配知识与工具' : '已生成待确认结果'}</span>
-                <span className="mt-0.5 block truncate text-[11px] text-[#6D79A7]">{isGenerating ? '正在读取任务要求，随后会创建可继续编辑的结果。' : generatedTitle}</span>
+                <span className="block text-[12px] font-semibold text-[#3446A8]">{isGenerating ? '正在路由 Agent、RAG 与 Skill' : activeRun ? `由 ${activeRun.agent_name} 承接 · ${activeRun.status === 'awaiting_approval' ? '等待审批' : '运行已记录'}` : '已生成待确认结果'}</span>
+                <span className="mt-0.5 block truncate text-[11px] text-[#6D79A7]">{isGenerating ? '任务会写入服务端运行记录，不再使用本地模拟计时。' : generatedTitle}</span>
               </span>
-              {!isGenerating ? <button type="button" onClick={() => onNavigate('tasks')} className="shrink-0 text-[11px] font-semibold text-[#5267E8]">查看结果</button> : null}
+              {!isGenerating ? <button type="button" onClick={() => onNavigate(activeRun?.approval ? 'agents' : 'tasks')} className="shrink-0 text-[11px] font-semibold text-[#5267E8]">{activeRun?.approval ? '进入工作室处理' : '查看结果'}</button> : null}
             </div>
           ) : null}
         </section>

@@ -27,7 +27,6 @@ interface TopBarProps {
 
 const viewLabels: Record<ViewType, string> = {
   home: '工作台',
-  assistant: 'AI 助手',
   tasks: '任务中心',
   studio: '智能创作',
   'design-system': '系统设置',
@@ -39,7 +38,7 @@ const viewLabels: Record<ViewType, string> = {
   scripts: '我的作品',
   workflows: '工作流编排',
   analytics: '数据概览',
-  agents: 'Agent 管理',
+  agents: 'Agent 工作室',
   skills: 'Skill 能力中心',
   knowledge: '文件与知识库',
   connections: '连接管理',
@@ -55,14 +54,13 @@ interface CommandDefinition {
 
 const commandDefinitions: CommandDefinition[] = [
   { id: 'workspace', label: '前往工作台', description: '开始新的 AI 工作任务', view: 'home', icon: LayoutDashboard },
-  { id: 'assistant', label: '打开 AI 助手', description: '查知识、分析内容或继续对话', view: 'assistant', icon: Bot },
   { id: 'create', label: '开始智能创作', description: '文案、图片、视频和演示文稿', view: 'studio', icon: Sparkles },
   { id: 'project', label: '查看活动宣传', description: '跟进活动节奏、内容物料和发布成果', view: 'campaigns', icon: Megaphone },
   { id: 'tasks', label: '查看任务中心', description: '处理今日任务与待确认事项', view: 'tasks', icon: ListTodo },
   { id: 'works', label: '打开我的作品', description: '查看草稿、待确认与已发布内容', view: 'scripts', icon: FilePenLine },
   { id: 'analytics', label: '查看数据概览', description: '了解内容表现与工作效率', view: 'analytics', icon: BarChart3 },
   { id: 'connections', label: '管理外部连接', description: '配置平台、模型、数据源和工具', view: 'connections', icon: PlugZap },
-  { id: 'agents', label: '管理 Agent', description: '配置角色、模型、Skill 与知识库', view: 'agents', icon: Bot },
+  { id: 'agents', label: '打开 Agent 工作室', description: '创建、配置、测试和使用 Agent', view: 'agents', icon: Bot },
   { id: 'skills', label: '打开 Skill 能力中心', description: '发现、检查并绑定 Agent 可调用的能力', view: 'skills', icon: Puzzle },
 ];
 
@@ -212,7 +210,7 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
           <button
             type="button"
             aria-label="帮助"
-            onClick={() => showToast('帮助中心正在整理，常见问题可先询问 AI 助手', 'info')}
+            onClick={() => showToast('点击右下角 AI 助手，可获得当前页面的即时协助', 'info')}
             className="hidden h-9 w-9 items-center justify-center rounded-xl text-[#687985] transition-colors hover:bg-[#F1F5F8] hover:text-[#5267E8] sm:flex"
           >
             <CircleHelp className="h-[18px] w-[18px]" strokeWidth={1.8} />

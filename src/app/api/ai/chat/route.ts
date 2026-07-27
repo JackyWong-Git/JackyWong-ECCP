@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 import {
   createDeepSeekChatCompletion,
-  DEEPSEEK_MODELS,
   DeepSeekConfigurationError,
   DeepSeekRequestError,
   type DeepSeekMessage,
-  type DeepSeekModel,
 } from '@/lib/deepseek';
 import { getAuthentication } from '@/lib/server-auth';
 import { hasPermission } from '@/lib/access-control';
@@ -44,9 +42,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '请提供有效的用户消息。' }, { status: 400 });
     }
 
-    const model = typeof body.model === 'string' && DEEPSEEK_MODELS.includes(body.model as DeepSeekModel)
-      ? body.model as DeepSeekModel
-      : undefined;
+    const model = typeof body.model === 'string' ? body.model : undefined;
     const system = typeof body.system === 'string' ? body.system.trim().slice(0, 20_000) : '';
     const result = await createDeepSeekChatCompletion({
       model,

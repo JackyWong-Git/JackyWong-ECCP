@@ -5,8 +5,15 @@ COZE_WORKSPACE_PATH="${COZE_WORKSPACE_PATH:-$(pwd)}"
 
 cd "${COZE_WORKSPACE_PATH}"
 
-echo "Installing dependencies..."
-pnpm install --prefer-frozen-lockfile --prefer-offline --loglevel debug --reporter=append-only
+# In CI environments (Vercel/EdgeOne), dependencies are pre-installed.
+# Re-running pnpm install in NODE_ENV=production strips devDependencies
+# like TypeScript, which Next.js needs to transpile next.config.ts.
+if [ -d "node_modules/.pnpm" ]; then
+  echo "Dependencies already installed, skipping pnpm install..."
+else
+  echo "Installing dependencies..."
+  pnpm install --prefer-frozen-lockfile --prefer-offline --loglevel debug --reporter=append-only
+fi
 
 run_build() {
   local babel_backup=""
@@ -17,6 +24,11 @@ run_build() {
   fi
 
   trap 'if [[ -n "${babel_backup}" && -f "${babel_backup}" ]]; then mv "${babel_backup}" .babelrc; fi' RETURN
+
+  # Clean stale build cache before every build to prevent
+  # "Unable to open static sorted file .sst/.meta" errors
+  # from a previous Turbopack LevelDB cache.
+  rm -rf .next/cache
 
   echo "Building the Next.js project..."
   pnpm next build --webpack

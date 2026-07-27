@@ -46,8 +46,8 @@ const navGroups: NavGroup[] = [
     label: '智能工作',
     items: [
       { id: 'home', label: '工作台', icon: LayoutDashboard },
-      { id: 'assistant', label: 'AI 助手', icon: Bot },
       { id: 'studio', label: '智能创作', icon: Sparkles },
+      { id: 'agents', label: 'Agent 工作室', icon: Bot },
     ],
   },
   {
@@ -71,7 +71,6 @@ const navGroups: NavGroup[] = [
     label: '平台管理',
     items: [
       { id: 'connections', label: '连接管理', icon: PlugZap },
-      { id: 'agents', label: 'Agent 管理', icon: Bot },
       { id: 'skills', label: 'Skill 能力中心', icon: Puzzle },
       { id: 'workflows', label: '工作流编排', icon: ListTodo },
       { id: 'design-system', label: '系统设置', icon: Settings2 },

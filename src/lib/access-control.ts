@@ -1,6 +1,5 @@
 export type ViewType =
   | 'home'
-  | 'assistant'
   | 'tasks'
   | 'studio'
   | 'design-system'
@@ -19,7 +18,6 @@ export type ViewType =
 
 export const viewPermissions: Record<ViewType, string> = {
   home: 'accounts.access_workspace',
-  assistant: 'accounts.use_ai_assistant',
   tasks: 'accounts.view_tasks',
   studio: 'accounts.create_content',
   'design-system': 'accounts.manage_platform',
@@ -31,7 +29,7 @@ export const viewPermissions: Record<ViewType, string> = {
   scripts: 'accounts.create_content',
   workflows: 'accounts.manage_platform',
   analytics: 'accounts.view_analytics',
-  agents: 'accounts.manage_platform',
+  agents: 'accounts.use_ai_assistant',
   skills: 'accounts.manage_platform',
   knowledge: 'accounts.view_knowledge',
   connections: 'accounts.manage_platform',
