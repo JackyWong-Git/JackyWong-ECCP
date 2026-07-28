@@ -28,13 +28,25 @@ export interface AgentRun {
   agent_name: string;
   agent_status: string;
   agent_version: number;
+  source: string;
+  input_text: string;
   status: string;
   business_key: string;
   route_reason: string;
   model_id: string;
   output_text: string;
+  error_message: string;
+  requested_by_name: string;
+  started_at: string;
+  completed_at: string | null;
+  created_at: string;
   steps: AgentRunStep[];
   approval: AgentApproval | null;
+}
+
+export interface AgentRunList {
+  items: AgentRun[];
+  total: number;
 }
 
 export interface AgentExecutionResult {
@@ -60,5 +72,18 @@ export async function executeAgentTask(payload: {
   });
   const data = await response.json() as AgentExecutionResult & { error?: string };
   if (!response.ok || !data.content || !data.run) throw new Error(data.error || 'Agent 未返回有效内容');
+  return data;
+}
+
+export async function listAgentRuns(options: { limit?: number; source?: string } = {}): Promise<AgentRunList> {
+  const params = new URLSearchParams({ limit: String(options.limit ?? 6) });
+  if (options.source) params.set('source', options.source);
+  const response = await fetch(`/api/backend/v1/agent-runs?${params.toString()}`, {
+    cache: 'no-store',
+  });
+  const data = await response.json() as AgentRunList & { detail?: string };
+  if (!response.ok || !Array.isArray(data.items)) {
+    throw new Error(data.detail || '无法加载 Agent 运行记录');
+  }
   return data;
 }

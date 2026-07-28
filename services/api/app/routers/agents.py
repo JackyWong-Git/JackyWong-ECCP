@@ -570,11 +570,18 @@ async def complete_agent_run(run_id: uuid.UUID, payload: AgentRunComplete, sessi
 
 
 @router.get("/agent-runs", response_model=AgentRunList)
-async def list_agent_runs(session: Session, user: User, limit: int = Query(default=50, ge=1, le=200)) -> AgentRunList:
+async def list_agent_runs(
+    session: Session,
+    user: User,
+    limit: int = Query(default=50, ge=1, le=200),
+    source: str | None = Query(default=None, min_length=1, max_length=24),
+) -> AgentRunList:
     _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
     query = select(AgentRun).options(*_run_options()).order_by(AgentRun.created_at.desc()).limit(limit)
     if not user.has_permission("accounts.manage_platform"):
         query = query.where(AgentRun.requested_by_employee_id == user.employeeId)
+    if source:
+        query = query.where(AgentRun.source == source)
     runs = (await session.scalars(query)).unique().all()
     return AgentRunList(items=[_run_item(run) for run in runs], total=len(runs))
 

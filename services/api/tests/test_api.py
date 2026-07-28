@@ -476,6 +476,23 @@ def test_member_can_open_configure_and_use_agent_studio() -> None:
         assert run.status_code == 201
         assert run.json()["agent_id"] == selected["id"]
 
+        home_run = client.post(
+            "/v1/agent-runs",
+            headers=headers,
+            json={
+                "agent_id": selected["id"],
+                "input_text": "测试工作台运行记录筛选",
+                "source": "home",
+            },
+        )
+        assert home_run.status_code == 201
+
+        home_runs = client.get("/v1/agent-runs?source=home", headers=headers)
+        assert home_runs.status_code == 200
+        assert home_runs.json()["total"] == 1
+        assert home_runs.json()["items"][0]["id"] == home_run.json()["id"]
+        assert all(item["source"] == "home" for item in home_runs.json()["items"])
+
 
 def test_member_can_create_update_and_archive_agent_workflow() -> None:
     headers = auth_headers(["accounts.use_ai_assistant"])

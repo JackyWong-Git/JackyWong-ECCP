@@ -7,9 +7,9 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
-  Circle,
   Clock3,
   Database,
+  LoaderCircle,
   FileAudio,
   FileText,
   Globe2,
@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { type ChangeEvent, type ComponentType, useEffect, useRef, useState } from 'react';
 import { type ViewType } from '@/lib/access-control';
-import { executeAgentTask, type AgentRun } from '@/lib/agent-runtime';
+import { executeAgentTask, listAgentRuns, type AgentRun } from '@/lib/agent-runtime';
 import { useAuth } from '@/components/auth-guard';
 import { showToast } from './toast';
 
@@ -37,8 +37,7 @@ interface WorkTask {
   title: string;
   project: string;
   due: string;
-  status: 'todo' | 'review' | 'done';
-  priority: 'normal' | 'urgent';
+  status: string;
 }
 
 interface ToolDefinition {
@@ -68,12 +67,6 @@ const TOOLS: ToolDefinition[] = [
   { name: 'AI 文件', description: '阅读、对比与信息提取', recent: '今天 09:42', icon: FileText, view: 'knowledge', tone: 'bg-[#FFF4E8]', iconTone: 'text-[#C27A2C]' },
 ];
 
-const INITIAL_TASKS: WorkTask[] = [
-  { id: 'task-1', title: '确认 22 周年员工故事终稿', project: '22 周年文化传播', due: '今天 17:00', status: 'review', priority: 'urgent' },
-  { id: 'task-2', title: '补充新员工培训活动预算', project: '新员工文化融入', due: '明天 12:00', status: 'todo', priority: 'normal' },
-  { id: 'task-3', title: '整理 7 月选题会行动项', project: '月度内容运营', due: '周四', status: 'todo', priority: 'normal' },
-];
-
 const PROJECTS = [
   { name: '22 周年文化传播', stage: '内容制作', progress: 76, due: '本周五', color: '#5267E8' },
   { name: '新员工文化融入', stage: '方案确认', progress: 48, due: '7 月 29 日', color: '#4FC7E8' },
@@ -94,6 +87,38 @@ const RECENT_FILES = [
 
 const STORAGE_KEY = 'eccp-workspace-composer';
 
+function formatRunTime(value: string) {
+  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value);
+  const date = new Date(hasTimezone ? value : `${value}Z`);
+  if (Number.isNaN(date.getTime())) return '时间未知';
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function runToWorkTask(run: AgentRun): WorkTask {
+  const input = run.input_text.trim() || '未命名任务';
+  return {
+    id: run.id,
+    title: input.length > 38 ? `${input.slice(0, 38)}…` : input,
+    project: `${run.agent_name} · ${run.model_id}`,
+    due: formatRunTime(run.created_at),
+    status: run.status,
+  };
+}
+
+const RUN_STATUS: Record<string, { label: string; tone: string }> = {
+  running: { label: '运行中', tone: 'bg-[#EEF1FF] text-[#5267E8]' },
+  completed: { label: '已完成', tone: 'bg-[#EAF7F1] text-[#21865D]' },
+  failed: { label: '失败', tone: 'bg-[#FFF0F0] text-[#C94F56]' },
+  awaiting_approval: { label: '待审批', tone: 'bg-[#FFF5E8] text-[#B36F27]' },
+  ready_for_execution: { label: '待执行', tone: 'bg-[#EBF7FF] text-[#317FAE]' },
+  rejected: { label: '已拒绝', tone: 'bg-[#F1F4F7] text-[#748590]' },
+};
+
 export function HomeComposer({ onNavigate }: HomeComposerProps) {
   const { user } = useAuth();
   const [brief, setBrief] = useState('');
@@ -101,7 +126,8 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
   const [webEnabled, setWebEnabled] = useState(false);
   const [mode, setMode] = useState('智能模式');
   const [fileNames, setFileNames] = useState<string[]>([]);
-  const [tasks, setTasks] = useState<WorkTask[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<WorkTask[]>([]);
+  const [runsLoading, setRunsLoading] = useState(true);
   const [isListening, setIsListening] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedTitle, setGeneratedTitle] = useState('');
@@ -126,6 +152,23 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ brief, knowledgeEnabled, webEnabled, mode }));
   }, [brief, knowledgeEnabled, mode, webEnabled]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listAgentRuns({ limit: 6, source: 'home' })
+      .then(({ items }) => {
+        if (!cancelled) setTasks(items.map(runToWorkTask));
+      })
+      .catch(error => {
+        if (!cancelled) showToast(error instanceof Error ? error.message : '无法加载运行记录', 'error');
+      })
+      .finally(() => {
+        if (!cancelled) setRunsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const applyQuickTask = (prompt: string) => {
     setBrief(prompt);
@@ -159,30 +202,15 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
         knowledge_enabled: knowledgeEnabled,
         web_enabled: webEnabled,
       });
-      const title = content.length > 26 ? `${content.slice(0, 26)}…` : content;
       setGeneratedTitle(result.content.slice(0, 80));
       setActiveRun(result.run);
-      const generatedTask: WorkTask = {
-        id: result.run.id,
-        title,
-        project: result.run.agent_name,
-        due: '刚刚创建',
-        status: result.run.status === 'completed' ? 'review' : 'todo',
-        priority: 'normal',
-      };
-      setTasks(current => [generatedTask, ...current].slice(0, 4));
+      setTasks(current => [runToWorkTask(result.run), ...current.filter(item => item.id !== result.run.id)].slice(0, 6));
       showToast(`已由 ${result.run.agent_name} 完成并写入运行记录`, 'success');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Agent 执行失败', 'error');
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const toggleTask = (taskId: string) => {
-    setTasks(current => current.map(task => task.id === taskId
-      ? { ...task, status: task.status === 'done' ? 'todo' : 'done' }
-      : task));
   };
 
   return (
@@ -202,7 +230,7 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
               onClick={() => onNavigate('tasks')}
               className="w-fit rounded-xl border border-[#DDE5EA] bg-white px-3.5 py-2 text-[11px] font-medium text-[#60707D] shadow-sm transition-colors hover:border-[#BAC7F5] hover:text-[#5267E8]"
             >
-              今天有 3 项任务待处理，1 个活动本周到期
+              {tasks.length ? `最近有 ${tasks.length} 次 AI 运行，点击查看详情` : '还没有 AI 运行记录，发送任务即可开始'}
             </button>
           </div>
 
@@ -346,28 +374,37 @@ export function HomeComposer({ onNavigate }: HomeComposerProps) {
             <div className="surface-card overflow-hidden">
               <div className="flex items-center justify-between border-b border-[#EDF1F4] px-4 py-4 sm:px-5">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#263640]">今日任务</h3>
-                  <p className="mt-1 text-[10px] text-[#8A99A4]">优先处理待确认与临期事项</p>
+                  <h3 className="text-[15px] font-semibold text-[#263640]">最近 AI 运行</h3>
+                  <p className="mt-1 text-[10px] text-[#8A99A4]">来自服务端 AgentRun，不再使用演示任务</p>
                 </div>
-                <button type="button" onClick={() => onNavigate('tasks')} className="text-[11px] font-medium text-[#5267E8]">全部任务</button>
+                <button type="button" onClick={() => onNavigate('studio')} className="text-[11px] font-medium text-[#5267E8]">运行记录</button>
               </div>
               <div className="divide-y divide-[#EFF3F5] px-2 sm:px-3">
+                {runsLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-8 text-[11px] text-[#84939E]">
+                    <LoaderCircle className="h-4 w-4 animate-spin text-[#5267E8]" /> 正在加载真实运行记录
+                  </div>
+                ) : null}
+                {!runsLoading && tasks.length === 0 ? (
+                  <button type="button" onClick={() => inputRef.current?.focus()} className="block w-full py-8 text-center text-[11px] text-[#84939E]">
+                    暂无运行记录，在上方描述任务即可启动 Agent
+                  </button>
+                ) : null}
                 {tasks.map(task => {
-                  const done = task.status === 'done';
+                  const status = RUN_STATUS[task.status] ?? { label: task.status, tone: 'bg-[#F1F4F7] text-[#748590]' };
+                  const completed = task.status === 'completed';
                   return (
-                    <div key={task.id} className="flex items-center gap-3 rounded-xl px-2 py-3 sm:px-3">
-                      <button type="button" onClick={() => toggleTask(task.id)} aria-label={done ? `恢复任务 ${task.title}` : `完成任务 ${task.title}`} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${done ? 'bg-[#EAF7F1] text-[#25A76F]' : 'bg-[#F4F7F9] text-[#9AA8B3] hover:bg-[#EDEFFF] hover:text-[#5267E8]'}`}>
-                        {done ? <CheckCircle2 className="h-[17px] w-[17px]" strokeWidth={1.9} /> : <Circle className="h-[17px] w-[17px]" strokeWidth={1.8} />}
-                      </button>
-                      <button type="button" onClick={() => onNavigate('tasks')} className="min-w-0 flex-1 text-left">
-                        <span className={`block truncate text-[12px] font-semibold ${done ? 'text-[#98A5AE] line-through' : 'text-[#31414B]'}`}>{task.title}</span>
-                        <span className="mt-1 block truncate text-[10px] text-[#8A99A4]">{task.project}</span>
-                      </button>
-                      <span className={`hidden shrink-0 rounded-lg px-2 py-1 text-[9px] font-medium sm:inline ${task.status === 'review' ? 'bg-[#FFF5E8] text-[#B36F27]' : done ? 'bg-[#EAF7F1] text-[#21865D]' : 'bg-[#F1F4F7] text-[#748590]'}`}>
-                        {task.status === 'review' ? '待确认' : done ? '已完成' : '进行中'}
+                    <button key={task.id} type="button" onClick={() => onNavigate('studio')} className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left transition-colors hover:bg-[#F7F8FC] sm:px-3">
+                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${completed ? 'bg-[#EAF7F1] text-[#25A76F]' : task.status === 'failed' ? 'bg-[#FFF0F0] text-[#C94F56]' : 'bg-[#EEF1FF] text-[#5267E8]'}`}>
+                        {completed ? <CheckCircle2 className="h-[17px] w-[17px]" strokeWidth={1.9} /> : <LoaderCircle className={`h-[17px] w-[17px] ${task.status === 'running' ? 'animate-spin' : ''}`} strokeWidth={1.8} />}
                       </span>
-                      <span className={`shrink-0 text-[10px] ${task.priority === 'urgent' && !done ? 'font-semibold text-[#DC5A60]' : 'text-[#8B9AA5]'}`}>{task.due}</span>
-                    </div>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12px] font-semibold text-[#31414B]">{task.title}</span>
+                        <span className="mt-1 block truncate text-[10px] text-[#8A99A4]">{task.project}</span>
+                      </span>
+                      <span className={`hidden shrink-0 rounded-lg px-2 py-1 text-[9px] font-medium sm:inline ${status.tone}`}>{status.label}</span>
+                      <span className="shrink-0 text-[10px] text-[#8B9AA5]">{task.due}</span>
+                    </button>
                   );
                 })}
               </div>
