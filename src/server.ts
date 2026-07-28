@@ -43,7 +43,7 @@ app.prepare().then(() => {
     console.error(err);
     process.exit(1);
   });
-  server.listen(port, () => {
+  server.listen(port, hostname, () => {
     console.log(
       `> Server listening at http://${hostname}:${port} as ${
         dev ? 'development' : 'production'
