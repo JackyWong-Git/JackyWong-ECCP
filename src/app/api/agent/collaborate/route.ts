@@ -149,7 +149,6 @@ async function executeAgent(input: {
       : '';
     const result = await createDeepSeekChatCompletion({
       user: input.user,
-      model: run.model_id,
       messages: [
         {
           role: 'system',

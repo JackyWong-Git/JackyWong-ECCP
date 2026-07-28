@@ -87,7 +87,6 @@ export async function POST(request: Request) {
       : '';
     const result = await createDeepSeekChatCompletion({
       user,
-      model: run.model_id,
       messages: [
         { role: 'system', content: `${run.system_prompt}${ragContext}` },
         ...(messages.length ? messages : [{ role: 'user' as const, content: inputText }]),

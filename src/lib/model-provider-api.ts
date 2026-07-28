@@ -21,6 +21,15 @@ export interface ModelProviderList {
   environment_fallback_base_url: string;
 }
 
+export interface ModelRuntimeStatus {
+  configured: boolean;
+  model: string;
+  provider: string;
+  source: 'default_provider' | 'connected_provider' | 'environment' | 'saved_provider';
+  is_default: boolean;
+  message: string;
+}
+
 export interface ModelProviderInput {
   name: string;
   provider_key: string;
@@ -43,6 +52,13 @@ async function modelProviderRequest<T>(path: string, init?: RequestInit): Promis
 
 export function listModelProviders() {
   return modelProviderRequest<ModelProviderList>('');
+}
+
+export async function getModelRuntimeStatus() {
+  const response = await fetch('/api/backend/v1/model-runtime/status', { cache: 'no-store' });
+  const data = await response.json() as ModelRuntimeStatus & { detail?: string; error?: string };
+  if (!response.ok) throw new Error(data.detail || data.error || '无法读取模型运行状态');
+  return data;
 }
 
 export function createModelProvider(payload: ModelProviderInput) {

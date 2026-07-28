@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { type ComponentType, useDeferredValue, useEffect, useState } from 'react';
 import { executeAgentTask, type AgentRun } from '@/lib/agent-runtime';
+import { getModelRuntimeStatus, type ModelRuntimeStatus } from '@/lib/model-provider-api';
 import { PlatformDialog } from './platform-dialog';
 import { showToast } from './toast';
 
@@ -95,7 +96,7 @@ const statusDefinition = {
   retest: { label: '待复测', tone: 'bg-[#FFF0ED] text-[#C65345]' },
 };
 
-const emptyForm = { name: '', description: '', category: 'content' as AgentCategory, model_id: 'gpt-5.4', system_prompt: '' };
+const emptyForm = { name: '', description: '', category: 'content' as AgentCategory, model_id: 'platform-default', system_prompt: '' };
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -113,6 +114,7 @@ export function AgentManagement({ embedded = false }: { embedded?: boolean }) {
   const [query, setQuery] = useState('');
   const [draftPrompt, setDraftPrompt] = useState('');
   const [draftModel, setDraftModel] = useState('');
+  const [modelRuntime, setModelRuntime] = useState<ModelRuntimeStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [bindingMode, setBindingMode] = useState<'skill' | 'knowledge' | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -127,14 +129,17 @@ export function AgentManagement({ embedded = false }: { embedded?: boolean }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [agentData, skillData, knowledgeData] = await Promise.all([
+      const [agentData, skillData, knowledgeData, runtimeData] = await Promise.all([
         api<{ items: AgentItem[] }>('/api/backend/v1/agents'),
         api<{ items: SkillItem[] }>('/api/backend/v1/skills?status=installed'),
         api<{ items: KnowledgeBaseItem[] }>('/api/backend/v1/knowledge-bases'),
+        getModelRuntimeStatus(),
       ]);
       setAgents(agentData.items);
       setSkills(skillData.items.filter(item => item.installation?.enabled));
       setKnowledgeBases(knowledgeData.items);
+      setModelRuntime(runtimeData);
+      setCreateForm(current => ({ ...current, model_id: runtimeData.model }));
       const nextSelected = agentData.items.find(item => item.id === selectedId) ?? agentData.items[0];
       if (nextSelected) {
         setSelectedId(nextSelected.id);
@@ -190,22 +195,6 @@ export function AgentManagement({ embedded = false }: { embedded?: boolean }) {
       setAgents(current => current.map(item => item.id === updated.id ? updated : item));
     } catch (error) {
       showToast(error instanceof Error ? error.message : '状态更新失败', 'error');
-    }
-  };
-
-  const saveModel = async () => {
-    if (!selectedAgent || !draftModel.trim() || draftModel.trim() === selectedAgent.model_id) return;
-    try {
-      const updated = await api<AgentItem>(`/api/backend/v1/agents/${selectedAgent.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model_id: draftModel.trim() }),
-      });
-      setAgents(current => current.map(item => item.id === updated.id ? updated : item));
-      setDraftModel(updated.model_id);
-      showToast(`模型已切换为 ${updated.model_id}`, 'success');
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : '模型更新失败', 'error');
     }
   };
 
@@ -362,7 +351,7 @@ export function AgentManagement({ embedded = false }: { embedded?: boolean }) {
           </div>
 
           <div className="space-y-4">
-            <section className="rounded-2xl border border-[#E2E8ED] bg-[#F8FAFB] p-4"><div className="grid grid-cols-2 gap-2"><div className="rounded-xl bg-white p-3"><span className="text-[7px] text-[#87959F]">真实运行</span><strong className="mt-1 block text-[18px] text-[#2F414C]">{selectedAgent.run_count}</strong></div><div className="rounded-xl bg-white p-3"><span className="text-[7px] text-[#87959F]">成功率</span><strong className="mt-1 block text-[18px] text-[#2F414C]">{selectedAgent.success_rate}%</strong></div></div><label className="mt-3 block"><span className="mb-1.5 block text-[8px] font-semibold text-[#60707D]">运行模型</span><span className="flex gap-2"><input value={draftModel} onChange={event => setDraftModel(event.target.value)} aria-label="Agent 运行模型" className="h-9 min-w-0 flex-1 rounded-xl border border-[#DDE5EA] bg-white px-3 text-[8px] font-semibold text-[#2F414C] outline-none focus:border-[#AEBBF4]" /><button type="button" onClick={saveModel} disabled={!draftModel.trim() || draftModel.trim() === selectedAgent.model_id} className="rounded-xl bg-[#5267E8] px-3 text-[8px] font-semibold text-white disabled:opacity-35">保存</button></span></label></section>
+            <section className="rounded-2xl border border-[#E2E8ED] bg-[#F8FAFB] p-4"><div className="grid grid-cols-2 gap-2"><div className="rounded-xl bg-white p-3"><span className="text-[7px] text-[#87959F]">真实运行</span><strong className="mt-1 block text-[18px] text-[#2F414C]">{selectedAgent.run_count}</strong></div><div className="rounded-xl bg-white p-3"><span className="text-[7px] text-[#87959F]">成功率</span><strong className="mt-1 block text-[18px] text-[#2F414C]">{selectedAgent.success_rate}%</strong></div></div><div className="mt-3 rounded-xl border border-[#DDE5EA] bg-white p-3"><span className="flex items-center justify-between gap-2"><span className="text-[8px] font-semibold text-[#60707D]">平台验证模型</span><span className={`rounded-md px-1.5 py-0.5 text-[7px] font-semibold ${modelRuntime?.configured ? 'bg-[#EAF7F1] text-[#21865D]' : 'bg-[#FFF0F1] text-[#C44F55]'}`}>{modelRuntime?.configured ? '可运行' : '未就绪'}</span></span><strong className="mt-2 block truncate font-mono text-[9px] text-[#2F414C]">{modelRuntime?.model || draftModel || '尚未配置'}</strong><p className="mt-1 text-[7px] leading-4 text-[#87959F]">{modelRuntime ? `${modelRuntime.provider} · ${modelRuntime.message}` : '正在读取平台模型状态'}</p></div></section>
             <section id="agent-test-panel" className="rounded-2xl border border-[#DDE4FF] bg-[linear-gradient(135deg,#F7F8FF_0%,#F2FAFB_100%)] p-4"><div className="flex items-center justify-between"><h3 className="flex items-center gap-2 text-[10px] font-semibold text-[#35454F]"><MessageSquareText className="h-3.5 w-3.5 text-[#5267E8]" />真实测试</h3><span className="text-[7px] text-[#8A99A4]">写入 AgentRun</span></div><textarea value={testInput} onChange={event => setTestInput(event.target.value)} rows={4} placeholder="输入任务，测试当前 Agent…" className="mt-3 w-full resize-none rounded-xl border border-[#DDE5EA] bg-white p-3 text-[8px] leading-4 text-[#4C5D68] outline-none focus:border-[#AEBBF4]" /><button type="button" onClick={runTest} disabled={isTesting || !testInput.trim()} className="mt-2 flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-[#17243B] text-[8px] font-semibold text-white disabled:opacity-50"><Play className="h-3 w-3" />{isTesting ? '运行中…' : '发送给当前 Agent'}</button>{testRun ? <div className="mt-3 rounded-xl bg-white p-3"><div className="flex items-center justify-between text-[8px] font-semibold text-[#4357C9]"><span>{testRun.agent_name} · v{testRun.agent_version}</span><span>{testRun.status}</span></div><div className="mt-2 flex flex-wrap gap-1">{testRun.steps.map(step => <span key={step.id} className="rounded-md bg-[#F1F4F8] px-1.5 py-1 text-[7px] text-[#687985]">{step.name} · {step.status}</span>)}</div><p className="mt-2 max-h-28 overflow-y-auto whitespace-pre-wrap text-[8px] leading-4 text-[#52636E]">{testResult}</p></div> : <div className="mt-3 flex items-center justify-between rounded-xl border border-dashed border-[#D7DEEF] p-3 text-[7px] text-[#8A98A2]"><span>运行后显示 RAG、Skill、模型与审批步骤</span><ChevronRight className="h-3 w-3" /></div>}</section>
           </div>
         </div>

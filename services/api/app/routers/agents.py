@@ -36,6 +36,7 @@ from ..agent_schemas import (
 from ..config import get_settings
 from ..database import get_session
 from ..embeddings import embed_texts
+from ..model_runtime import resolve_model_runtime
 from ..models import (
     Agent,
     AgentKnowledgeBinding,
@@ -334,8 +335,11 @@ async def list_agents(session: Session, user: User) -> AgentList:
 @router.post("/agents", response_model=AgentItem, status_code=status.HTTP_201_CREATED)
 async def create_agent(payload: AgentCreate, session: Session, user: User) -> AgentItem:
     _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
+    runtime = await resolve_model_runtime(session)
+    if not runtime.configured:
+        raise HTTPException(status_code=503, detail=runtime.error or "请先配置并测试可用模型")
     slug = f"custom-{uuid.uuid4().hex[:12]}"
-    agent = Agent(slug=slug, name=payload.name, description=payload.description, category=payload.category, model_id=payload.model_id, routing_keywords=payload.routing_keywords, business_keys=payload.business_keys, status="draft", created_by_employee_id=user.employeeId, created_by_name=user.displayName)
+    agent = Agent(slug=slug, name=payload.name, description=payload.description, category=payload.category, model_id=runtime.model, routing_keywords=payload.routing_keywords, business_keys=payload.business_keys, status="draft", created_by_employee_id=user.employeeId, created_by_name=user.displayName)
     session.add(agent)
     await session.flush()
     session.add(AgentVersion(agent_id=agent.id, version=1, system_prompt=payload.system_prompt, config={}, change_note="创建 Agent", created_by_employee_id=user.employeeId, created_by_name=user.displayName))
@@ -347,7 +351,17 @@ async def create_agent(payload: AgentCreate, session: Session, user: User) -> Ag
 async def update_agent(agent_id: uuid.UUID, payload: AgentUpdate, session: Session, user: User) -> AgentItem:
     _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
     agent = await _load_agent(session, agent_id)
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if requested_model := changes.get("model_id"):
+        runtime = await resolve_model_runtime(session)
+        if not runtime.configured:
+            raise HTTPException(status_code=503, detail=runtime.error or "请先配置并测试可用模型")
+        if requested_model != runtime.model:
+            raise HTTPException(
+                status_code=409,
+                detail=f"当前平台仅允许使用已验证模型 {runtime.model}，请先在系统设置中测试并切换供应商",
+            )
+    for key, value in changes.items():
         setattr(agent, key, value)
     await session.commit()
     return _agent_item(await _load_agent(session, agent.id))
@@ -485,11 +499,15 @@ async def update_agent_knowledge(agent_id: uuid.UUID, payload: AgentKnowledgeBin
 @router.post("/agent-runs", response_model=AgentRunItem, status_code=status.HTTP_201_CREATED)
 async def create_agent_run(payload: AgentRunCreate, session: Session, user: User) -> AgentRunItem:
     _require_any(user, "accounts.use_ai_assistant", "accounts.manage_platform")
+    runtime = await resolve_model_runtime(session)
+    if not runtime.configured:
+        raise HTTPException(status_code=503, detail=runtime.error or "请先配置并测试可用模型")
     business = payload.business_key or _business_for(payload.input_text)
     agent, reason = await _route_agent(session, payload.input_text, business, payload.agent_id)
+    agent.model_id = runtime.model
     version = _current_version(agent)
     now = datetime.now(timezone.utc)
-    run = AgentRun(agent_id=agent.id, agent_version_id=version.id, source=payload.source, input_text=payload.input_text, business_key=business, route_reason=reason, model_id=agent.model_id, conversation_id=payload.conversation_id, requested_by_employee_id=user.employeeId, requested_by_name=user.displayName)
+    run = AgentRun(agent_id=agent.id, agent_version_id=version.id, source=payload.source, input_text=payload.input_text, business_key=business, route_reason=reason, model_id=runtime.model, conversation_id=payload.conversation_id, requested_by_employee_id=user.employeeId, requested_by_name=user.displayName)
     session.add(run)
     await session.flush()
     ordinal = 1
@@ -518,7 +536,7 @@ async def create_agent_run(payload: AgentRunCreate, session: Session, user: User
         ordinal += 1
         if requires_approval:
             high_risk_skills.append(skill.name)
-    session.add(RunStep(run_id=run.id, ordinal=ordinal, step_type="model", name="模型生成", status="running", input_summary=f"使用 {agent.model_id}", started_at=now))
+    session.add(RunStep(run_id=run.id, ordinal=ordinal, step_type="model", name="模型生成", status="running", input_summary=f"使用 {runtime.provider_name} · {runtime.model}", started_at=now))
     if high_risk_skills:
         session.add(Approval(run_id=run.id, reason=f"将调用高风险发布能力：{'、'.join(high_risk_skills)}。批准只会进入受控执行队列。", requested_by_employee_id=user.employeeId, requested_by_name=user.displayName))
     await session.commit()

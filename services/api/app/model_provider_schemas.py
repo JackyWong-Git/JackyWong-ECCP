@@ -69,6 +69,15 @@ class ModelProviderActivate(BaseModel):
     apply_model_to_agents: bool = True
 
 
+class ModelRuntimeStatus(BaseModel):
+    configured: bool
+    model: str
+    provider: str
+    source: str
+    is_default: bool
+    message: str
+
+
 class ModelChatMessage(BaseModel):
     role: str
     content: str = Field(min_length=1, max_length=30_000)

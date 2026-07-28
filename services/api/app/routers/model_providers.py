@@ -23,7 +23,9 @@ from ..model_provider_schemas import (
     ModelProviderList,
     ModelProviderTestResult,
     ModelProviderUpdate,
+    ModelRuntimeStatus,
 )
+from ..model_runtime import resolve_model_runtime
 from ..models import Agent, ModelProvider
 from ..security import InternalUser, get_internal_user
 
@@ -232,33 +234,41 @@ async def delete_model_provider(provider_id: uuid.UUID, session: Session, user: 
     await session.commit()
 
 
+@router.get("/model-runtime/status", response_model=ModelRuntimeStatus)
+async def model_runtime_status(session: Session, user: User) -> ModelRuntimeStatus:
+    if not user.has_permission("accounts.use_ai_assistant"):
+        raise HTTPException(status_code=403, detail="当前账号没有使用 AI 助手的权限")
+    runtime = await resolve_model_runtime(session)
+    is_default = bool(runtime.provider and runtime.provider.is_default)
+    if runtime.configured:
+        message = (
+            "平台默认模型已就绪"
+            if is_default or runtime.source == "environment"
+            else "已自动使用最近测试通过的供应商，建议管理员将其设为平台默认"
+        )
+    else:
+        message = runtime.error or "尚未配置可用模型"
+    return ModelRuntimeStatus(
+        configured=runtime.configured,
+        model=runtime.model,
+        provider=runtime.provider_name,
+        source=runtime.source,
+        is_default=is_default,
+        message=message,
+    )
+
+
 @router.post("/model-runtime/chat", response_model=ModelChatResponse)
 async def model_runtime_chat(payload: ModelChatRequest, session: Session, user: User) -> ModelChatResponse:
     if not user.has_permission("accounts.use_ai_assistant"):
         raise HTTPException(status_code=403, detail="当前账号没有使用 AI 助手的权限")
-    provider = await session.scalar(
-        select(ModelProvider).where(ModelProvider.is_default.is_(True), ModelProvider.enabled.is_(True))
-    )
-    settings = get_settings()
-    if provider:
-        try:
-            api_key = decrypt_credential(provider.api_key_ciphertext)
-        except CredentialDecryptionError as error:
-            raise HTTPException(status_code=503, detail=str(error)) from error
-        base_url = provider.base_url
-        model = payload.model or provider.default_model
-        provider_name = provider.name
-    else:
-        api_key = settings.llm_api_key
-        base_url = settings.llm_base_url
-        model = payload.model or settings.llm_model
-        provider_name = "环境变量配置"
-    if not api_key:
-        raise HTTPException(status_code=503, detail="尚未配置可用的模型供应商或 LLM API Key")
+    runtime = await resolve_model_runtime(session)
+    if not runtime.configured:
+        raise HTTPException(status_code=503, detail=runtime.error or "尚未配置可用的模型供应商或 LLM API Key")
     data, _ = await _call_provider(
-        base_url=base_url,
-        api_key=api_key,
-        model=model,
+        base_url=runtime.base_url,
+        api_key=runtime.api_key,
+        model=runtime.model,
         messages=[message.model_dump() for message in payload.messages],
         temperature=payload.temperature,
         max_tokens=payload.max_tokens,
@@ -268,7 +278,7 @@ async def model_runtime_chat(payload: ModelChatRequest, session: Session, user: 
         raise HTTPException(status_code=502, detail="模型服务未返回有效内容")
     return ModelChatResponse(
         content=content,
-        model=data.get("model") or model,
-        provider=provider_name,
+        model=data.get("model") or runtime.model,
+        provider=runtime.provider_name,
         usage=data.get("usage"),
     )

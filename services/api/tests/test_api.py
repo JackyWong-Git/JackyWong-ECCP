@@ -561,6 +561,49 @@ def test_model_provider_requires_superuser_and_never_returns_plaintext(monkeypat
         assert tested.status_code == 200
         assert tested.json()["latency_ms"] == 36
 
+        runtime_status = client.get("/v1/model-runtime/status", headers=admin_headers)
+        assert runtime_status.status_code == 200
+        assert runtime_status.json()["configured"] is True
+        assert runtime_status.json()["model"] == "gpt-5.4"
+        assert runtime_status.json()["source"] == "connected_provider"
+
+        automatic_chat = client.post(
+            "/v1/model-runtime/chat",
+            headers=admin_headers,
+            json={
+                "model": "unverified-model",
+                "messages": [{"role": "user", "content": "测试自动选择已连接供应商"}],
+            },
+        )
+        assert automatic_chat.status_code == 200
+        assert automatic_chat.json()["model"] == "gpt-5.4"
+        assert automatic_chat.json()["provider"] == "测试 Kudex"
+
+        selected_agent = client.get("/v1/agents", headers=admin_headers).json()["items"][0]
+        invalid_model = client.patch(
+            f"/v1/agents/{selected_agent['id']}",
+            headers=admin_headers,
+            json={"model_id": "unverified-model"},
+        )
+        assert invalid_model.status_code == 409
+
+        routed_run = client.post(
+            "/v1/agent-runs",
+            headers=admin_headers,
+            json={
+                "agent_id": selected_agent["id"],
+                "input_text": "验证 Agent 使用平台模型",
+                "source": "test",
+            },
+        )
+        assert routed_run.status_code == 201
+        assert routed_run.json()["model_id"] == "gpt-5.4"
+        assert "测试 Kudex" in next(
+            step["input_summary"]
+            for step in routed_run.json()["steps"]
+            if step["step_type"] == "model"
+        )
+
         activated = client.post(
             f"/v1/model-providers/{provider_id}/activate",
             headers=admin_headers,
