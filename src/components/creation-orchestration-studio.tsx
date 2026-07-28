@@ -3,6 +3,7 @@
 import {
   Activity,
   ArrowDown,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUp,
   Bot,
@@ -18,7 +19,6 @@ import {
   Layers3,
   LoaderCircle,
   Network,
-  Orbit,
   PencilLine,
   Play,
   Plus,
@@ -161,14 +161,14 @@ const modeDefinitions: Record<CollaborationMode, {
     label: '动态监督',
     short: '监督者调度团队',
     description: '监督 Agent 制定计划、分派专家，并在最后统一验收。',
-    icon: Orbit,
+    icon: Network,
     tone: 'bg-[#EAF7F1] text-[#21865D]',
   },
   peer_handoff: {
     label: '同伴交接',
     short: '角色依次接力',
     description: '多个专家共享上下文并逐步补充、纠错和交接。',
-    icon: UsersRound,
+    icon: ArrowLeftRight,
     tone: 'bg-[#FFF4E8] text-[#B36F27]',
   },
 };
@@ -308,22 +308,27 @@ function RuntimeWorkflowGraph({
               </div>
             ))}
           </div>
+        ) : workflow.collaboration_mode === 'peer_handoff' ? (
+          <div className="mt-4 flex items-start justify-center">
+            {graphAgents.map((agent, index) => <div key={agent.id} className="flex min-w-0 items-start">
+              <RuntimeAgentNode agent={agent} completed={isCompleted(agent)} compact />
+              {index < graphAgents.length - 1 ? <ArrowRight className="mx-1 mt-3 h-3 w-3 shrink-0 text-[#4F8DDF]" /> : null}
+            </div>)}
+          </div>
+        ) : workflow.collaboration_mode === 'supervisor_dynamic' ? (
+          <div className="mt-3">
+            <div className="mx-auto flex w-fit flex-col items-center">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EAF7F1] text-[#21865D] ring-2 ring-white shadow"><UsersRound className="h-3.5 w-3.5"/></span>
+              <span className="mt-1 text-[6px] font-semibold text-[#21865D]">监督调度</span>
+            </div>
+            <ArrowDown className="mx-auto my-1 h-3 w-3 text-[#4F8DDF]"/>
+            <div className={`grid gap-2 ${graphAgents.length > 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>{graphAgents.map(agent => <RuntimeAgentNode key={agent.id} agent={agent} completed={isCompleted(agent)} compact />)}</div>
+          </div>
         ) : (
           <div className="relative mt-4">
-            {graphAgents.length > 1 && graphAgents.length <= 3 ? (
-              <>
-                <span className="absolute left-[16%] right-[16%] top-5 h-px bg-[#69A6EE]" />
-                <span className="absolute left-1/2 top-[-16px] h-9 w-px -translate-x-1/2 bg-[#69A6EE]" />
-              </>
-            ) : null}
-            {graphAgents.length > 3 ? <span className="absolute bottom-6 left-1/2 top-[-16px] w-px -translate-x-1/2 bg-[#69A6EE]" /> : null}
-            <div className={`relative grid gap-x-2 gap-y-3 ${graphAgents.length === 1 ? 'grid-cols-1' : graphAgents.length > 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-              {graphAgents.map((agent, index) => (
-                <div key={agent.id} className="relative">
-                  {graphAgents.length > 3 ? <span className={`absolute top-[18px] h-px bg-[#69A6EE] ${index % 2 === 0 ? 'left-1/2 right-0' : 'left-0 right-1/2'}`} /> : null}
-                  <RuntimeAgentNode agent={agent} completed={isCompleted(agent)} compact={graphAgents.length > 3} />
-                </div>
-              ))}
+            {graphAgents.length > 1 ? <><span className="absolute left-[16%] right-[16%] top-0 h-px bg-[#69A6EE]" /><span className="absolute left-1/2 -top-4 h-4 w-px -translate-x-1/2 bg-[#69A6EE]" /></> : null}
+            <div className={`grid gap-2 pt-1 ${graphAgents.length === 1 ? 'grid-cols-1' : graphAgents.length > 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {graphAgents.map(agent => <div key={agent.id} className="relative pt-2"><span className="absolute left-1/2 top-0 h-2 w-px -translate-x-1/2 bg-[#69A6EE]"/><RuntimeAgentNode agent={agent} completed={isCompleted(agent)} compact={graphAgents.length > 3}/></div>)}
             </div>
           </div>
         )}

@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 1536
     chunk_size: int = 1000
     chunk_overlap: int = 120
+    topic_search_openserp_url: str = ""
+    topic_search_openserp_api_key: str = ""
+    topic_search_openserp_engines: str = "baidu,bing,duckduckgo"
+    topic_search_searxng_url: str = ""
+    topic_search_searxng_language: str = "zh-CN"
+    topic_search_rss_feeds: str = ""
+    topic_discovery_poll_seconds: int = 60
     credential_encryption_key: str = ""
     allow_private_model_endpoints: bool = False
     llm_api_key: str = Field(

@@ -34,6 +34,8 @@ class DocumentItem(BaseModel):
     status: str
     chunk_count: int
     error_message: str
+    concept_id: str
+    document_metadata: dict
     created_at: datetime
 
 
@@ -58,3 +60,22 @@ class SearchResult(BaseModel):
 class SearchResponse(BaseModel):
     query: str
     items: list[SearchResult]
+
+
+class OkfConcept(BaseModel):
+    id: str
+    title: str
+    type: str
+    description: str
+    tags: list[str]
+    trust: str
+    status: str
+    links: list[str]
+    document_id: uuid.UUID
+
+
+class OkfGraph(BaseModel):
+    okf_version: str
+    concepts: list[OkfConcept]
+    edges: list[dict[str, str]]
+    trust_counts: dict[str, int]

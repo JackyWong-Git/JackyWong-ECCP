@@ -19,7 +19,28 @@ export interface DocumentApiItem {
   status: 'queued' | 'processing' | 'processed' | 'error';
   chunk_count: number;
   error_message: string;
+  concept_id: string;
+  document_metadata: Record<string, unknown>;
   created_at: string;
+}
+
+export interface OkfConceptApiItem {
+  id: string;
+  title: string;
+  type: string;
+  description: string;
+  tags: string[];
+  trust: 'unverified' | 'machine-confirmed' | 'human-reviewed';
+  status: string;
+  links: string[];
+  document_id: string;
+}
+
+export interface OkfGraphApiItem {
+  okf_version: string;
+  concepts: OkfConceptApiItem[];
+  edges: Array<{ source: string; target: string }>;
+  trust_counts: Record<string, number>;
 }
 
 export interface SearchApiItem {

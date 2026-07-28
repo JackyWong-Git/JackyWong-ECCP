@@ -20,6 +20,9 @@ function requiredPermission(method: string, path: string[]) {
   if (path[1] === 'topics') {
     return method === 'GET' ? 'accounts.view_topics' : 'accounts.create_content';
   }
+  if (path[1] === 'topic-discovery-rules') {
+    return method === 'GET' ? 'accounts.view_topics' : 'accounts.create_content';
+  }
   if (path[1] === 'content-tasks') {
     return method === 'GET' ? 'accounts.view_tasks' : 'accounts.manage_projects';
   }

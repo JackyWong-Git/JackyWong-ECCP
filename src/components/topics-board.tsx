@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, LayoutGrid, List, LoaderCircle, Plus, Radar, Search, Trash2, X } from 'lucide-react';
+import { Clock3, ExternalLink, LayoutGrid, List, LoaderCircle, Play, Plus, Radar, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { useDeferredValue, useEffect, useState } from 'react';
 import {
   type ExternalTopic,
@@ -8,7 +8,7 @@ import {
   type TopicSearchRange,
   type TopicSearchResponse,
 } from '@/lib/topic-search-types';
-import { type ListResponse, type TopicItem, type TopicStatus, formatDate, workflowApi } from '@/lib/workflow-api';
+import { type ListResponse, type TopicDiscoveryRuleItem, type TopicDiscoveryRunItem, type TopicItem, type TopicStatus, formatDate, workflowApi } from '@/lib/workflow-api';
 import { showToast } from '@/components/toast';
 
 const statusColumns: Array<{ id: TopicStatus; label: string; color: string }> = [
@@ -47,6 +47,10 @@ export function TopicsBoard() {
   const [externalError, setExternalError] = useState('');
   const [searchMeta, setSearchMeta] = useState<Pick<TopicSearchResponse, 'providers' | 'failures'> | null>(null);
   const [importedExternalIds, setImportedExternalIds] = useState<string[]>([]);
+  const [discoveryRules, setDiscoveryRules] = useState<TopicDiscoveryRuleItem[]>([]);
+  const [ruleName, setRuleName] = useState('企业文化趋势雷达');
+  const [savingRule, setSavingRule] = useState(false);
+  const [lastRuns, setLastRuns] = useState<Record<string, TopicDiscoveryRunItem>>({});
 
   useEffect(() => {
     let active = true;
@@ -56,6 +60,13 @@ export function TopicsBoard() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!showDiscovery) return;
+    workflowApi<TopicDiscoveryRuleItem[]>('topic-discovery-rules')
+      .then(setDiscoveryRules)
+      .catch(error => showToast(error instanceof Error ? error.message : '自动规则加载失败', 'error'));
+  }, [showDiscovery]);
 
   const filtered = topics.filter(topic => {
     const haystack = `${topic.title} ${topic.description} ${topic.tags.join(' ')} ${topic.source}`.toLocaleLowerCase();
@@ -167,6 +178,60 @@ export function TopicsBoard() {
     }
   };
 
+  const createDiscoveryRule = async () => {
+    if (ruleName.trim().length < 2 || externalQuery.trim().length < 2) return;
+    setSavingRule(true);
+    try {
+      const created = await workflowApi<TopicDiscoveryRuleItem>('topic-discovery-rules', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: ruleName.trim(),
+          query: externalQuery.trim(),
+          provider: externalProvider,
+          search_range: externalRange,
+          schedule: 'daily',
+          enabled: true,
+          auto_import: true,
+          score_threshold: 45,
+          max_items: 8,
+        }),
+      });
+      setDiscoveryRules(current => [created, ...current]);
+      showToast('自动发现规则已启用', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '规则创建失败', 'error');
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
+  const toggleRule = async (rule: TopicDiscoveryRuleItem) => {
+    try {
+      const updated = await workflowApi<TopicDiscoveryRuleItem>(`topic-discovery-rules/${rule.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled: !rule.enabled }),
+      });
+      setDiscoveryRules(current => current.map(item => item.id === updated.id ? updated : item));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '规则更新失败', 'error');
+    }
+  };
+
+  const runDiscoveryRule = async (rule: TopicDiscoveryRuleItem) => {
+    setBusyId(`rule-${rule.id}`);
+    try {
+      const run = await workflowApi<TopicDiscoveryRunItem>(`topic-discovery-rules/${rule.id}/run`, { method: 'POST' });
+      setLastRuns(current => ({ ...current, [rule.id]: run }));
+      const payload = await workflowApi<ListResponse<TopicItem>>('topics');
+      setTopics(payload.items);
+      showToast(`发现 ${run.found_count} 条，自动入库 ${run.imported_count} 条`, run.status === 'failed' ? 'error' : 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '自动发现运行失败', 'error');
+    } finally {
+      setBusyId('');
+    }
+  };
+
   return (
     <div className="min-h-full bg-[#F2F6F8] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
@@ -174,7 +239,17 @@ export function TopicsBoard() {
 
         {showNewTopic && <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-[#DCE4F8] bg-white p-3 sm:flex-row"><input autoFocus value={newTopicTitle} onChange={event => setNewTopicTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void createTopic(); }} placeholder="输入选题标题" className="h-10 flex-1 rounded-xl border border-[#E1E8ED] px-3 text-sm outline-none focus:border-[#7083EE]"/><button disabled={busyId === 'create'} onClick={() => void createTopic()} className="rounded-xl bg-[#5267E8] px-5 text-xs font-semibold text-white disabled:opacity-60">创建</button><button onClick={() => setShowNewTopic(false)} className="rounded-xl px-4 text-xs text-[#71818D]">取消</button></div>}
 
-        {showDiscovery && <section className="mt-5 overflow-hidden rounded-3xl border border-[#DCE4F8] bg-[linear-gradient(135deg,#F7F8FF_0%,#F3FBFD_100%)] p-4 shadow-[0_12px_34px_rgba(49,74,108,0.06)] sm:p-5"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-[10px] font-semibold tracking-[0.12em] text-[#5267E8]">EXTERNAL TOPIC DISCOVERY</p><h2 className="mt-1 text-lg font-semibold text-[#263640]">搜索外部趋势并导入选题池</h2><p className="mt-1 text-[10px] text-[#71818D]">保留来源链接和数据源，不由模型虚构热点。</p></div>{searchMeta && <span className="text-[9px] text-[#7C8C97]">数据源：{searchMeta.providers.join(' + ')}{searchMeta.failures.length ? ` · ${searchMeta.failures.join('、')}` : ''}</span>}</div><form onSubmit={handleExternalSearch} className="mt-4 grid gap-2 lg:grid-cols-[minmax(0,1fr)_150px_130px_auto]"><input value={externalQuery} onChange={event => setExternalQuery(event.target.value)} placeholder="雇主品牌、员工故事、AI 组织变革" className="h-10 rounded-xl border border-[#DCE4EA] bg-white px-3 text-xs outline-none focus:border-[#7083EE]"/><select value={externalProvider} onChange={event => setExternalProvider(event.target.value as TopicSearchProvider)} className="h-10 rounded-xl border border-[#DCE4EA] bg-white px-3 text-xs"><option value="auto">自动选源</option><option value="openserp">OpenSERP</option><option value="searxng">SearXNG</option><option value="rss">RSS 订阅池</option></select><select value={externalRange} onChange={event => setExternalRange(event.target.value as TopicSearchRange)} className="h-10 rounded-xl border border-[#DCE4EA] bg-white px-3 text-xs"><option value="day">近 24 小时</option><option value="week">近 7 天</option><option value="month">近 30 天</option></select><button disabled={searchingExternal} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[#17232D] px-4 text-xs font-semibold text-white disabled:opacity-60">{searchingExternal ? <LoaderCircle className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}开始发现</button></form>{externalError && <div className="mt-3 rounded-xl border border-[#F1D0D4] bg-[#FFF5F6] px-3 py-2 text-xs text-[#B34E5A]">{externalError}</div>}{externalResults.length > 0 && <div className="mt-4 grid gap-3 lg:grid-cols-2">{externalResults.map(candidate => { const imported = importedExternalIds.includes(candidate.id); return <article key={candidate.id} className="rounded-2xl border border-[#E0E7EC] bg-white p-4"><div className="flex items-start justify-between gap-3"><a href={candidate.url} target="_blank" rel="noreferrer" className="line-clamp-2 text-xs font-semibold leading-5 text-[#34444E] hover:text-[#5267E8]">{candidate.title}</a><span className="shrink-0 rounded-lg bg-[#EAF7F1] px-2 py-1 text-[9px] font-semibold text-[#21865D]">{candidate.score} 分</span></div><p className="mt-2 line-clamp-2 text-[10px] leading-5 text-[#71818D]">{candidate.summary || '无摘要'}</p><div className="mt-3 flex items-center justify-between"><span className="text-[9px] text-[#8796A1]">{candidate.sourceName} · {candidate.provider}</span><button disabled={imported || busyId === candidate.id} onClick={() => void importExternal(candidate)} className="rounded-lg border border-[#C9D3FA] px-2.5 py-1.5 text-[10px] font-semibold text-[#5267E8] disabled:border-[#DCE8E1] disabled:text-[#25A76F]">{imported ? '已入库' : '导入选题'}</button></div></article>; })}</div>}</section>}
+        {showDiscovery && <section className="mt-5 overflow-hidden rounded-3xl border border-[#DCE4F8] bg-[linear-gradient(135deg,#F7F8FF_0%,#F3FBFD_100%)] p-4 shadow-[0_12px_34px_rgba(49,74,108,0.06)] sm:p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-[10px] font-semibold tracking-[0.12em] text-[#5267E8]">AUTOMATED TOPIC RADAR</p><h2 className="mt-1 text-lg font-semibold text-[#263640]">外部趋势发现与自动入库</h2><p className="mt-1 text-[10px] text-[#71818D]">搜索负责找源，自动规则负责定时运行、去重和回写 PostgreSQL。</p></div>{searchMeta && <span className="text-[9px] text-[#7C8C97]">数据源：{searchMeta.providers.join(' + ')}{searchMeta.failures.length ? ` · ${searchMeta.failures.join('、')}` : ''}</span>}</div>
+          <form onSubmit={handleExternalSearch} className="mt-4 grid gap-2 lg:grid-cols-[minmax(0,1fr)_150px_130px_auto]"><input value={externalQuery} onChange={event => setExternalQuery(event.target.value)} placeholder="雇主品牌、员工故事、AI 组织变革" className="h-10 rounded-xl border border-[#DCE4EA] bg-white px-3 text-xs outline-none focus:border-[#7083EE]"/><select value={externalProvider} onChange={event => setExternalProvider(event.target.value as TopicSearchProvider)} className="h-10 rounded-xl border border-[#DCE4EA] bg-white px-3 text-xs"><option value="auto">自动选源</option><option value="openserp">OpenSERP</option><option value="searxng">SearXNG</option><option value="rss">RSS 订阅池</option></select><select value={externalRange} onChange={event => setExternalRange(event.target.value as TopicSearchRange)} className="h-10 rounded-xl border border-[#DCE4EA] bg-white px-3 text-xs"><option value="day">近 24 小时</option><option value="week">近 7 天</option><option value="month">近 30 天</option></select><button disabled={searchingExternal} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-[#17232D] px-4 text-xs font-semibold text-white disabled:opacity-60">{searchingExternal ? <LoaderCircle className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}立即搜索</button></form>
+          <div className="mt-3 grid gap-2 rounded-2xl border border-[#DDE5F2] bg-white/75 p-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#5267E8]"/><input value={ruleName} onChange={event => setRuleName(event.target.value)} className="h-9 min-w-0 flex-1 bg-transparent text-[11px] font-semibold text-[#42545F] outline-none" placeholder="自动规则名称"/></label>
+            <button type="button" disabled={savingRule} onClick={() => void createDiscoveryRule()} className="flex h-9 items-center justify-center gap-2 rounded-xl border border-[#BFC9FA] bg-[#EEF0FF] px-4 text-[10px] font-semibold text-[#5267E8] disabled:opacity-60"><Clock3 className="h-3.5 w-3.5"/>{savingRule ? '保存中' : '设为每日自动发现'}</button>
+          </div>
+          {discoveryRules.length > 0 && <div className="mt-3 grid gap-2 xl:grid-cols-2">{discoveryRules.map(rule => { const run = lastRuns[rule.id]; return <article key={rule.id} className="flex items-center gap-3 rounded-2xl border border-[#E0E7EC] bg-white p-3"><button type="button" aria-label={rule.enabled ? '停用规则' : '启用规则'} onClick={() => void toggleRule(rule)} className={`relative h-5 w-9 shrink-0 rounded-full transition ${rule.enabled ? 'bg-[#5267E8]' : 'bg-[#CBD5DC]'}`}><span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${rule.enabled ? 'left-[18px]' : 'left-0.5'}`}/></button><div className="min-w-0 flex-1"><strong className="block truncate text-[10px] text-[#40515B]">{rule.name}</strong><span className="mt-1 block truncate text-[8px] text-[#85949F]">{rule.query} · 每日 · {rule.provider === 'auto' ? '自动选源' : rule.provider}{run ? ` · 本次入库 ${run.imported_count}` : rule.last_run_at ? ` · 上次 ${formatDate(rule.last_run_at, true)}` : ' · 等待首次运行'}</span></div><button type="button" disabled={busyId === `rule-${rule.id}`} onClick={() => void runDiscoveryRule(rule)} className="flex h-8 items-center gap-1.5 rounded-lg bg-[#17232D] px-3 text-[9px] font-semibold text-white disabled:opacity-60">{busyId === `rule-${rule.id}` ? <LoaderCircle className="h-3 w-3 animate-spin"/> : <Play className="h-3 w-3"/>}运行</button></article>; })}</div>}
+          {externalError && <div className="mt-3 rounded-xl border border-[#F1D0D4] bg-[#FFF5F6] px-3 py-2 text-xs text-[#B34E5A]">{externalError}</div>}
+          {externalResults.length > 0 && <div className="mt-4 grid gap-3 lg:grid-cols-2">{externalResults.map(candidate => { const imported = importedExternalIds.includes(candidate.id); return <article key={candidate.id} className="rounded-2xl border border-[#E0E7EC] bg-white p-4"><div className="flex items-start justify-between gap-3"><a href={candidate.url} target="_blank" rel="noreferrer" className="line-clamp-2 text-xs font-semibold leading-5 text-[#34444E] hover:text-[#5267E8]">{candidate.title}</a><span className="shrink-0 rounded-lg bg-[#EAF7F1] px-2 py-1 text-[9px] font-semibold text-[#21865D]">{candidate.score} 分</span></div><p className="mt-2 line-clamp-2 text-[10px] leading-5 text-[#71818D]">{candidate.summary || '无摘要'}</p><div className="mt-3 flex items-center justify-between"><span className="text-[9px] text-[#8796A1]">{candidate.sourceName} · {candidate.provider}</span><button disabled={imported || busyId === candidate.id} onClick={() => void importExternal(candidate)} className="rounded-lg border border-[#C9D3FA] px-2.5 py-1.5 text-[10px] font-semibold text-[#5267E8] disabled:border-[#DCE8E1] disabled:text-[#25A76F]">{imported ? '已入库' : '导入选题'}</button></div></article>; })}</div>}
+        </section>}
 
         <div className="mt-5 flex items-center gap-2 rounded-2xl border border-[#E1E8ED] bg-white p-3"><label className="flex h-9 flex-1 items-center gap-2 rounded-xl bg-[#F8FAFC] px-3"><Search className="h-3.5 w-3.5 text-[#82919C]"/><input value={searchQuery} onChange={event => setSearchQuery(event.target.value)} placeholder="搜索选题、来源或标签" className="min-w-0 flex-1 bg-transparent text-[10px] outline-none"/></label><div className="flex rounded-xl bg-[#F1F4F7] p-1"><button aria-label="看板" onClick={() => setViewMode('kanban')} className={`flex h-7 w-7 items-center justify-center rounded-lg ${viewMode === 'kanban' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#83929D]'}`}><LayoutGrid className="h-3.5 w-3.5"/></button><button aria-label="列表" onClick={() => setViewMode('table')} className={`flex h-7 w-7 items-center justify-center rounded-lg ${viewMode === 'table' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#83929D]'}`}><List className="h-3.5 w-3.5"/></button></div></div>
 

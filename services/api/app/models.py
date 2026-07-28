@@ -41,6 +41,8 @@ class Document(Base):
     status: Mapped[str] = mapped_column(String(24), default="queued", index=True)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str] = mapped_column(Text, default="")
+    concept_id: Mapped[str] = mapped_column(String(500), default="", index=True)
+    document_metadata: Mapped[dict] = mapped_column(json_type, default=dict)
     created_by_employee_id: Mapped[str] = mapped_column(String(16), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -124,6 +126,48 @@ class Topic(Base):
 
     material: Mapped[Material | None] = relationship(back_populates="topics")
     tasks: Mapped[list["ContentTask"]] = relationship(back_populates="topic")
+
+
+class TopicDiscoveryRule(Base):
+    __tablename__ = "topic_discovery_rules"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(160), index=True)
+    query: Mapped[str] = mapped_column(String(300))
+    provider: Mapped[str] = mapped_column(String(24), default="auto")
+    search_range: Mapped[str] = mapped_column(String(24), default="week")
+    schedule: Mapped[str] = mapped_column(String(24), default="daily", index=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    auto_import: Mapped[bool] = mapped_column(Boolean, default=True)
+    score_threshold: Mapped[int] = mapped_column(Integer, default=45)
+    max_items: Mapped[int] = mapped_column(Integer, default=8)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    created_by_employee_id: Mapped[str] = mapped_column(String(16), index=True)
+    created_by_name: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    runs: Mapped[list["TopicDiscoveryRun"]] = relationship(back_populates="rule", cascade="all, delete-orphan")
+
+
+class TopicDiscoveryRun(Base):
+    __tablename__ = "topic_discovery_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rule_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("topic_discovery_rules.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(24), default="running", index=True)
+    providers: Mapped[list[str]] = mapped_column(json_type, default=list)
+    found_count: Mapped[int] = mapped_column(Integer, default=0)
+    imported_count: Mapped[int] = mapped_column(Integer, default=0)
+    skipped_count: Mapped[int] = mapped_column(Integer, default=0)
+    failures: Mapped[list[str]] = mapped_column(json_type, default=list)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    rule: Mapped[TopicDiscoveryRule] = relationship(back_populates="runs")
 
 
 class ContentTask(Base):

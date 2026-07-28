@@ -47,6 +47,35 @@ export interface TopicItem {
   updated_at: string;
 }
 
+export interface TopicDiscoveryRuleItem {
+  id: string;
+  name: string;
+  query: string;
+  provider: 'auto' | 'openserp' | 'searxng' | 'rss';
+  search_range: 'day' | 'week' | 'month';
+  schedule: 'hourly' | 'daily' | 'weekly';
+  enabled: boolean;
+  auto_import: boolean;
+  score_threshold: number;
+  max_items: number;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+}
+
+export interface TopicDiscoveryRunItem {
+  id: string;
+  rule_id: string;
+  status: 'running' | 'completed' | 'partial' | 'failed';
+  providers: string[];
+  found_count: number;
+  imported_count: number;
+  skipped_count: number;
+  failures: string[];
+  started_at: string;
+  completed_at: string | null;
+}
+
 export interface ContentTaskItem {
   id: string;
   topic_id: string | null;

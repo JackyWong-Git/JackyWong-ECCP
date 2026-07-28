@@ -10,6 +10,7 @@ import {
   Grid3X3,
   HardDrive,
   List,
+  Network,
   LoaderCircle,
   Plus,
   Search,
@@ -17,7 +18,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { type DocumentApiItem, type KnowledgeBaseApiItem, type SearchApiItem } from '@/lib/eccp-api-types';
+import { type DocumentApiItem, type KnowledgeBaseApiItem, type OkfGraphApiItem, type SearchApiItem } from '@/lib/eccp-api-types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -56,7 +57,7 @@ export function RAGKnowledgeBase() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseApiItem[]>([]);
   const [documents, setDocuments] = useState<DocumentApiItem[]>([]);
   const [selectedId, setSelectedId] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'embedding'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'embedding' | 'wiki'>('list');
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchApiItem[] | null>(null);
   const [apiState, setApiState] = useState<ApiState>('loading');
@@ -68,6 +69,9 @@ export function RAGKnowledgeBase() {
   const [newDescription, setNewDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const okfInputRef = useRef<HTMLInputElement>(null);
+  const [okfGraph, setOkfGraph] = useState<OkfGraphApiItem | null>(null);
+  const [importingOkf, setImportingOkf] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
   const selectedKB = knowledgeBases.find(item => item.id === selectedId);
 
@@ -119,6 +123,13 @@ export function RAGKnowledgeBase() {
       if (timer) clearTimeout(timer);
     };
   }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId || viewMode !== 'wiki') return;
+    requestJson<OkfGraphApiItem>(`/api/backend/v1/knowledge-bases/${selectedId}/okf-graph`)
+      .then(setOkfGraph)
+      .catch(error => showToast((error as Error).message, 'error'));
+  }, [selectedId, viewMode]);
 
   const vectorPoints = useMemo(() => Array.from({ length: 56 }, (_, index) => {
     const seeded = (seed: number) => {
@@ -188,6 +199,28 @@ export function RAGKnowledgeBase() {
     }
   }
 
+  async function uploadOkfBundle(file: File) {
+    if (!selectedKB) return;
+    setImportingOkf(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const graph = await requestJson<OkfGraphApiItem>(`/api/backend/v1/knowledge-bases/${selectedKB.id}/okf-bundles`, {
+        method: 'POST',
+        body: formData,
+      });
+      setOkfGraph(graph);
+      setViewMode('wiki');
+      await refreshKnowledgeBases(selectedKB.id);
+      showToast(`已导入 ${graph.concepts.length} 个 OKF 概念`, 'success');
+    } catch (error) {
+      showToast((error as Error).message, 'error');
+    } finally {
+      setImportingOkf(false);
+      if (okfInputRef.current) okfInputRef.current.value = '';
+    }
+  }
+
   async function semanticSearch() {
     if (!selectedKB || query.trim().length < 2) {
       showToast('请输入至少 2 个字符再进行语义检索', 'info');
@@ -222,6 +255,10 @@ export function RAGKnowledgeBase() {
               <Plus className="h-4 w-4" /> 新建知识库
             </button>
             <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.md,.txt,.csv,.json" onChange={event => event.target.files?.[0] && void uploadDocument(event.target.files[0])} />
+            <input ref={okfInputRef} type="file" className="hidden" accept=".zip,application/zip" onChange={event => event.target.files?.[0] && void uploadOkfBundle(event.target.files[0])} />
+            <button type="button" disabled={!selectedKB || importingOkf} onClick={() => okfInputRef.current?.click()} className="flex h-10 items-center gap-2 rounded-xl border border-[#C8D3FA] bg-[#F1F3FF] px-4 text-[12px] font-semibold text-[#5267E8] disabled:opacity-50">
+              {importingOkf ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Network className="h-4 w-4" />} {importingOkf ? '导入中' : '导入 OKF'}
+            </button>
             <button type="button" disabled={!selectedKB || uploading} onClick={() => fileInputRef.current?.click()} className="flex h-10 items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.20)] disabled:cursor-not-allowed disabled:opacity-50">
               {uploading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} {uploading ? '上传中' : '上传文件'}
             </button>
@@ -260,7 +297,7 @@ export function RAGKnowledgeBase() {
             <div className="border-b border-[#E8EDF1] p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0"><div className="flex items-center gap-2"><h3 className="truncate text-[16px] font-semibold text-[#263640]">{selectedKB?.name || '选择知识库'}</h3>{selectedKB ? <span className={`rounded-lg px-2 py-1 text-[9px] font-semibold ${selectedKB.status === 'ready' ? 'bg-[#EAF7F1] text-[#21865D]' : 'bg-[#FFF4E6] text-[#B36F27]'}`}>{statusLabel[selectedKB.status]}</span> : null}</div><p className="mt-1 text-[10px] text-[#81909B]">{selectedKB?.description || '创建知识库后即可上传企业资料'}</p></div>
-                <div className="flex shrink-0 rounded-xl bg-[#F1F4F7] p-1"><button type="button" onClick={() => setViewMode('list')} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${viewMode === 'list' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#7D8D98]'}`}><List className="h-3.5 w-3.5" />文件</button><button type="button" onClick={() => setViewMode('embedding')} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${viewMode === 'embedding' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#7D8D98]'}`}><Grid3X3 className="h-3.5 w-3.5" />向量</button></div>
+                <div className="flex shrink-0 rounded-xl bg-[#F1F4F7] p-1"><button type="button" onClick={() => setViewMode('list')} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${viewMode === 'list' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#7D8D98]'}`}><List className="h-3.5 w-3.5" />文件</button><button type="button" onClick={() => setViewMode('embedding')} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${viewMode === 'embedding' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#7D8D98]'}`}><Grid3X3 className="h-3.5 w-3.5" />向量</button><button type="button" onClick={() => setViewMode('wiki')} className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[10px] font-semibold ${viewMode === 'wiki' ? 'bg-white text-[#5267E8] shadow-sm' : 'text-[#7D8D98]'}`}><Network className="h-3.5 w-3.5" />LLM Wiki</button></div>
               </div>
               <div className="mt-4 flex h-10 items-center gap-2 rounded-xl border border-[#E1E8ED] bg-[#F8FAFC] px-3 focus-within:border-[#B8C4F5] focus-within:bg-white"><Search className="h-4 w-4 text-[#82919C]" /><input value={query} onChange={event => { setQuery(event.target.value); setSearchResults(null); }} onKeyDown={event => { if (event.key === 'Enter') void semanticSearch(); }} placeholder="输入问题，回车进行语义检索" className="min-w-0 flex-1 bg-transparent text-[11px] text-[#4D5E69] outline-none placeholder:text-[#9AA7B0]" /><button type="button" disabled={semanticSearching || !selectedKB} onClick={() => void semanticSearch()} className="rounded-lg bg-[#EEF1FF] px-2.5 py-1.5 text-[9px] font-semibold text-[#5267E8] disabled:opacity-50">{semanticSearching ? '检索中' : '语义检索'}</button></div>
             </div>
@@ -273,8 +310,15 @@ export function RAGKnowledgeBase() {
                 {!searchResults && !visibleDocuments.length && !documentsLoading ? <div className="flex flex-col items-center px-5 py-16 text-center"><Search className="h-7 w-7 text-[#B5C0C8]" /><p className="mt-3 text-[11px] font-semibold text-[#667985]">{documents.length ? '当前条件下没有文件' : '知识库还是空的'}</p><p className="mt-1 text-[10px] text-[#95A2AC]">{documents.length ? '清除搜索条件后重试' : '上传 PDF、Word、Excel 或文本文件开始索引'}</p></div> : null}
                 {documentsLoading && !documents.length ? <div className="flex items-center justify-center gap-2 py-16 text-[10px] text-[#81909B]"><LoaderCircle className="h-4 w-4 animate-spin" />读取文件</div> : null}
               </div>
-            ) : (
+            ) : viewMode === 'embedding' ? (
               <div className="p-4"><div className="relative overflow-hidden rounded-2xl border border-[#E4EAF0] bg-[linear-gradient(145deg,#F7F9FF,#F0F8FA)]"><svg className="h-[360px] w-full" viewBox="0 0 400 360" role="img" aria-label="知识库向量聚类分布图">{Array.from({ length: 10 }, (_, index) => <line key={`h-${index}`} x1="0" y1={index * 40} x2="400" y2={index * 40} stroke="#DDE6ED" strokeWidth="0.6" />)}{Array.from({ length: 10 }, (_, index) => <line key={`v-${index}`} x1={index * 40} y1="0" x2={index * 40} y2="360" stroke="#DDE6ED" strokeWidth="0.6" />)}{vectorPoints.slice(0, Math.min(vectorPoints.length, Math.max(totalChunks, 8))).map((point, index) => <circle key={index} cx={point.x} cy={point.y} r="3.3" fill={point.color} opacity="0.72" />)}</svg><span className="absolute bottom-3 left-3 rounded-lg border border-white/80 bg-white/90 px-2.5 py-1.5 text-[9px] font-medium text-[#667985] shadow-sm">模型：{selectedKB?.embedding_model || '等待配置'}</span></div><p className="mt-3 text-[10px] leading-5 text-[#71818D]">这里展示当前知识库的向量分布概览；正式聚类可继续接入 UMAP 降维任务。</p></div>
+            ) : (
+              <div className="p-4">
+                <div className="rounded-2xl border border-[#DDE5F2] bg-[linear-gradient(145deg,#F7F8FF,#F1FAFB)] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[9px] font-semibold tracking-[0.12em] text-[#5267E8]">OPEN KNOWLEDGE FORMAT {okfGraph?.okf_version || '1.0'}</p><h4 className="mt-1 text-[13px] font-semibold text-[#33444F]">可遍历的企业 LLM Wiki</h4></div><div className="flex gap-2"><span className="rounded-lg bg-white px-2 py-1 text-[8px] text-[#60717D]">{okfGraph?.concepts.length || 0} 概念</span><span className="rounded-lg bg-white px-2 py-1 text-[8px] text-[#60717D]">{okfGraph?.edges.length || 0} 关联</span></div></div>
+                  {okfGraph?.concepts.length ? <div className="mt-4 grid gap-2 sm:grid-cols-2">{okfGraph.concepts.map(concept => <article key={concept.id} className="rounded-xl border border-[#E0E7EC] bg-white p-3"><div className="flex items-start justify-between gap-2"><span className="min-w-0"><strong className="block truncate text-[10px] text-[#40515B]">{concept.title}</strong><span className="mt-1 block truncate text-[8px] text-[#8A98A2]">{concept.id} · {concept.type}</span></span><span className={`shrink-0 rounded-md px-1.5 py-1 text-[7px] font-semibold ${concept.trust === 'human-reviewed' ? 'bg-[#EAF7F1] text-[#21865D]' : concept.trust === 'machine-confirmed' ? 'bg-[#EEF1FF] text-[#5267E8]' : 'bg-[#F1F4F7] text-[#71818D]'}`}>{concept.trust === 'human-reviewed' ? '人工已审' : concept.trust === 'machine-confirmed' ? '机器确认' : '待验证'}</span></div><p className="mt-2 line-clamp-2 text-[8px] leading-4 text-[#71818D]">{concept.description || '暂无概念说明'}</p><div className="mt-2 flex flex-wrap gap-1">{concept.tags.slice(0, 3).map(tag => <span key={tag} className="rounded bg-[#F0F3F6] px-1.5 py-0.5 text-[7px] text-[#6F808B]">#{tag}</span>)}{concept.links.length > 0 && <span className="rounded bg-[#EAF8FA] px-1.5 py-0.5 text-[7px] text-[#168EA7]">{concept.links.length} 条链接</span>}</div></article>)}</div> : <div className="py-16 text-center"><Network className="mx-auto h-8 w-8 text-[#AEBAC4]"/><p className="mt-3 text-[11px] font-semibold text-[#667985]">尚未导入 OKF 知识包</p><p className="mt-1 text-[9px] text-[#92A0AA]">导入结构化 Markdown ZIP，建立可共享的概念与来源网络。</p></div>}
+                </div>
+              </div>
             )}
           </section>
 

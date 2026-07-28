@@ -129,6 +129,59 @@ class TopicList(BaseModel):
     total: int
 
 
+class TopicDiscoveryRuleCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    query: str = Field(min_length=2, max_length=300)
+    provider: str = Field(default="auto", pattern="^(auto|openserp|searxng|rss)$")
+    search_range: str = Field(default="week", pattern="^(day|week|month)$")
+    schedule: str = Field(default="daily", pattern="^(hourly|daily|weekly)$")
+    enabled: bool = True
+    auto_import: bool = True
+    score_threshold: int = Field(default=45, ge=1, le=99)
+    max_items: int = Field(default=8, ge=1, le=30)
+
+
+class TopicDiscoveryRuleUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=160)
+    query: str | None = Field(default=None, min_length=2, max_length=300)
+    provider: str | None = Field(default=None, pattern="^(auto|openserp|searxng|rss)$")
+    search_range: str | None = Field(default=None, pattern="^(day|week|month)$")
+    schedule: str | None = Field(default=None, pattern="^(hourly|daily|weekly)$")
+    enabled: bool | None = None
+    auto_import: bool | None = None
+    score_threshold: int | None = Field(default=None, ge=1, le=99)
+    max_items: int | None = Field(default=None, ge=1, le=30)
+
+
+class TopicDiscoveryRuleItem(OrmModel):
+    id: uuid.UUID
+    name: str
+    query: str
+    provider: str
+    search_range: str
+    schedule: str
+    enabled: bool
+    auto_import: bool
+    score_threshold: int
+    max_items: int
+    last_run_at: datetime | None
+    next_run_at: datetime | None
+    created_at: datetime
+
+
+class TopicDiscoveryRunItem(OrmModel):
+    id: uuid.UUID
+    rule_id: uuid.UUID
+    status: str
+    providers: list[str]
+    found_count: int
+    imported_count: int
+    skipped_count: int
+    failures: list[str]
+    started_at: datetime
+    completed_at: datetime | None
+
+
 class ContentTaskCreate(BaseModel):
     topic_id: uuid.UUID | None = None
     material_id: uuid.UUID | None = None

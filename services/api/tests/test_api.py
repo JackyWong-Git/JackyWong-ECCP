@@ -1,11 +1,14 @@
 import base64
+import io
 import json
 import time
+import zipfile
 
 from fastapi.testclient import TestClient
 
 from app.embeddings import local_hash_embedding
 from app.ingestion import split_text
+from app.okf import parse_okf_bundle
 from app.main import app
 from app.routers import agents as agents_router
 from app.routers import model_providers as model_providers_router
@@ -45,6 +48,29 @@ def test_split_text_keeps_overlap() -> None:
     chunks = split_text("A" * 1800, size=1000, overlap=100)
     assert len(chunks) == 2
     assert chunks[0][-100:] == chunks[1][:100]
+
+
+def _okf_zip() -> bytes:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        archive.writestr("company-wiki/index.md", "---\nokf_version: '1.0'\n---\n# 企业知识")
+        archive.writestr(
+            "company-wiki/culture/values.md",
+            "---\ntype: Concept\ntitle: 企业价值观\ntags: [文化, 品牌]\nverified: true\nstatus: stable\n---\n"
+            "# 企业价值观\n参见[员工故事](stories.md)。",
+        )
+        archive.writestr(
+            "company-wiki/culture/stories.md",
+            "---\ntype: Collection\ntitle: 员工故事\ngenerated: true\n---\n# 员工故事",
+        )
+    return output.getvalue()
+
+
+def test_okf_parser_builds_trust_and_links() -> None:
+    bundle = parse_okf_bundle(_okf_zip())
+    assert bundle.version == "1.0"
+    assert bundle.documents[0].metadata["trust"] == "human-reviewed"
+    assert bundle.documents[0].links == ["culture/stories"]
 
 
 def test_agent_business_routing_prioritizes_channel_then_story() -> None:
@@ -88,6 +114,46 @@ def test_knowledge_base_upload_and_search_flow() -> None:
         )
         assert searched.status_code == 200
         assert searched.json()["items"][0]["document_name"] == "culture.txt"
+
+
+def test_okf_import_and_graph_flow() -> None:
+    headers = auth_headers(["accounts.view_knowledge", "accounts.create_content"])
+    with TestClient(app) as client:
+        created = client.post(
+            "/v1/knowledge-bases",
+            headers=headers,
+            json={"name": "OKF 企业 Wiki", "description": "结构化知识"},
+        )
+        knowledge_base_id = created.json()["id"]
+        imported = client.post(
+            f"/v1/knowledge-bases/{knowledge_base_id}/okf-bundles",
+            headers=headers,
+            files={"file": ("company-wiki.zip", _okf_zip(), "application/zip")},
+        )
+        assert imported.status_code == 202
+        assert len(imported.json()["concepts"]) == 2
+        assert imported.json()["trust_counts"]["human-reviewed"] == 1
+        graph = client.get(f"/v1/knowledge-bases/{knowledge_base_id}/okf-graph", headers=headers)
+        assert graph.status_code == 200
+        assert graph.json()["edges"] == [{"source": "culture/values", "target": "culture/stories"}]
+
+
+def test_topic_discovery_rule_can_run_without_configured_providers() -> None:
+    headers = auth_headers(["accounts.view_topics", "accounts.create_content"])
+    with TestClient(app) as client:
+        created = client.post(
+            "/v1/topic-discovery-rules",
+            headers=headers,
+            json={"name": "员工故事雷达", "query": "员工故事", "schedule": "daily"},
+        )
+        assert created.status_code == 201
+        run = client.post(
+            f"/v1/topic-discovery-rules/{created.json()['id']}/run",
+            headers=headers,
+        )
+        assert run.status_code == 200
+        assert run.json()["status"] == "completed"
+        assert run.json()["providers"] == []
 
 
 def test_write_requires_create_permission() -> None:

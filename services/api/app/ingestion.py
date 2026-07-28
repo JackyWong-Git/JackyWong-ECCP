@@ -90,7 +90,7 @@ async def process_document(document_id: uuid.UUID | str) -> None:
                     content=chunk,
                     token_estimate=max(1, len(chunk) // 2),
                     embedding=embedding,
-                    chunk_metadata={"filename": document.name},
+                    chunk_metadata={"filename": document.name, **(document.document_metadata or {})},
                 )
                 for index, (chunk, embedding) in enumerate(zip(chunks, embeddings, strict=True))
             )
