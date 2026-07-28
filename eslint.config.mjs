@@ -48,6 +48,8 @@ const eslintConfig = defineConfig([
     '.venv/**',
     'backend/**',
     '.playwright-cli/**',
+    '.deploy-backups/**',
+    '.deploy-staging/**',
     // Script files (CommonJS):
     'scripts/**/*.js',
   ]),
