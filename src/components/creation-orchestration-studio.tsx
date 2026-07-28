@@ -216,6 +216,130 @@ function formatTime(value: string) {
   }).format(date);
 }
 
+function RuntimeAgentNode({
+  agent,
+  completed,
+  compact = false,
+}: {
+  agent: WorkflowAgent;
+  completed: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div className="relative z-10 flex min-w-0 flex-col items-center text-center">
+      <span className={`relative flex items-center justify-center rounded-full border-2 bg-white shadow-[0_5px_14px_rgba(47,65,82,0.08)] ${compact ? 'h-9 w-9' : 'h-10 w-10'} ${completed ? 'border-[#6F82EA] text-[#5267E8]' : 'border-[#BBD0E4] text-[#647786]'}`}>
+        <Bot className="h-3.5 w-3.5" />
+        {completed ? <Check className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[#21865D] p-0.5 text-white" /> : null}
+      </span>
+      <span className="mt-1.5 w-full truncate text-[7px] font-semibold text-[#52636E]">{agent.name.replace(' Agent', '')}</span>
+      <span className="mt-0.5 text-[6px] text-[#95A2AB]">{agent.skill_count}S · {agent.knowledge_count}R</span>
+    </div>
+  );
+}
+
+function RuntimeWorkflowGraph({
+  workflow,
+  result,
+}: {
+  workflow: Workflow;
+  result: CollaborationResult | null;
+}) {
+  const mode = modeDefinitions[workflow.collaboration_mode];
+  const ModeIcon = mode.icon;
+  const isSequential = workflow.collaboration_mode === 'planner_executor';
+  const isSingle = workflow.collaboration_mode === 'single_agent_chat';
+  const graphAgents = isSingle ? workflow.agents.slice(0, 1) : workflow.agents;
+  const zoneCopy: Record<CollaborationMode, { title: string; tag: string; description: string }> = {
+    single_agent_chat: {
+      title: '单角色执行',
+      tag: 'DIRECT',
+      description: '一个 Agent 完整承接任务并交付结果。',
+    },
+    router_specialists: {
+      title: '专家路由区',
+      tag: 'ROUTER',
+      description: '路由器根据任务内容选择最匹配的 Agent。',
+    },
+    planner_executor: {
+      title: '计划执行链',
+      tag: 'PLAN',
+      description: '规划任务后，Agent 按既定顺序依次交付。',
+    },
+    supervisor_dynamic: {
+      title: '动态协作区',
+      tag: 'SUPERVISOR',
+      description: '监督者按任务动态分派、检查并决定下一步。',
+    },
+    peer_handoff: {
+      title: '同伴交接区',
+      tag: 'PEER MESH',
+      description: '多个角色共享上下文，运行时产生真实交接关系。',
+    },
+  };
+  const copy = zoneCopy[workflow.collaboration_mode];
+  const isCompleted = (agent: WorkflowAgent) => Boolean(result?.runs.find(run => run.agent_name === agent.name));
+
+  return (
+    <div className="mx-auto flex w-full max-w-[250px] flex-col items-center">
+      <span className="h-2 w-2 rounded-full bg-[#65798B] ring-4 ring-white shadow-sm" />
+      <span className="h-4 border-l border-dashed border-[#AFC0CF]" />
+      <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#8CBDF5] bg-white text-[#5267E8] shadow-[0_5px_14px_rgba(82,103,232,0.12)]">
+        <ModeIcon className="h-4 w-4" />
+      </span>
+      <span className="h-4 w-px bg-[#6F9DE8]" />
+
+      <div className="w-full rounded-[22px] border border-[#91C2F7] bg-[linear-gradient(145deg,#F5F9FF_0%,#EFF7FF_100%)] p-3.5 shadow-[0_10px_24px_rgba(83,124,174,0.08)]">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[8px] font-semibold text-[#344A5B]">{copy.title}</span>
+          <span className="text-[6px] font-semibold tracking-[0.08em] text-[#7690A5]">{copy.tag}</span>
+        </div>
+        <p className="mt-1.5 text-[6.5px] leading-3 text-[#718596]">{copy.description}</p>
+
+        {isSequential ? (
+          <div className="mt-3 space-y-1.5">
+            {graphAgents.map((agent, index) => (
+              <div key={agent.id}>
+                <div className={`flex items-center gap-2 rounded-xl border bg-white p-2 ${isCompleted(agent) ? 'border-[#AAB8F5]' : 'border-[#D6E2EC]'}`}>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${categoryTone[agent.category] || 'bg-[#EEF2F5] text-[#657682]'}`}><Bot className="h-3 w-3" /></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-[7px] font-semibold text-[#52636E]">{agent.name}</span><span className="mt-0.5 block text-[6px] text-[#95A2AB]">步骤 {index + 1}</span></span>
+                  {isCompleted(agent) ? <CheckCircle2 className="h-3 w-3 text-[#21865D]" /> : <span className="h-1.5 w-1.5 rounded-full bg-[#CED9E2]" />}
+                </div>
+                {index < graphAgents.length - 1 ? <ArrowDown className="mx-auto my-0.5 h-3 w-3 text-[#78A7EA]" /> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="relative mt-4">
+            {graphAgents.length > 1 && graphAgents.length <= 3 ? (
+              <>
+                <span className="absolute left-[16%] right-[16%] top-5 h-px bg-[#69A6EE]" />
+                <span className="absolute left-1/2 top-[-16px] h-9 w-px -translate-x-1/2 bg-[#69A6EE]" />
+              </>
+            ) : null}
+            {graphAgents.length > 3 ? <span className="absolute bottom-6 left-1/2 top-[-16px] w-px -translate-x-1/2 bg-[#69A6EE]" /> : null}
+            <div className={`relative grid gap-x-2 gap-y-3 ${graphAgents.length === 1 ? 'grid-cols-1' : graphAgents.length > 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {graphAgents.map((agent, index) => (
+                <div key={agent.id} className="relative">
+                  {graphAgents.length > 3 ? <span className={`absolute top-[18px] h-px bg-[#69A6EE] ${index % 2 === 0 ? 'left-1/2 right-0' : 'left-0 right-1/2'}`} /> : null}
+                  <RuntimeAgentNode agent={agent} completed={isCompleted(agent)} compact={graphAgents.length > 3} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <span className="h-4 w-px bg-[#6F9DE8]" />
+      <span className={`flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm ${result ? 'border-[#63B899] bg-[#EAF7F1] text-[#21865D]' : 'border-[#B8C8D6] bg-white text-[#71818D]'}`}>
+        {workflow.finalizer_enabled ? <Zap className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+      </span>
+      <span className="h-3 border-l border-dashed border-[#AFC0CF]" />
+      <span className="h-2 w-2 rounded-full bg-[#65798B] ring-4 ring-white shadow-sm" />
+      <span className="mt-2 text-[6px] font-medium text-[#8B99A3]">{result ? 'finalize · completed' : `${mode.label} · ready`}</span>
+    </div>
+  );
+}
+
 export function CreationOrchestrationStudio({ onNavigate, initialTab = 'overview' }: CreationOrchestrationStudioProps) {
   const [activeTab, setActiveTab] = useState<StudioTab>(initialTab);
   const [agents, setAgents] = useState<AgentItem[]>([]);
@@ -603,31 +727,10 @@ export function CreationOrchestrationStudio({ onNavigate, initialTab = 'overview
           </div>
 
           <div className="grid min-h-[680px] gap-3 xl:grid-cols-[300px_minmax(420px,1fr)_340px]">
-            <div className="flex min-h-[560px] flex-col overflow-hidden rounded-3xl border border-[#E1E8ED] bg-white shadow-[0_10px_30px_rgba(47,65,82,0.045)]">
+            <div className="flex min-h-[470px] flex-col overflow-hidden rounded-3xl border border-[#E1E8ED] bg-white shadow-[0_10px_30px_rgba(47,65,82,0.045)] xl:min-h-[560px]">
               <div className="border-b border-[#E8EDF1] px-4 py-3"><div className="flex items-center justify-between"><h2 className="flex items-center gap-2 text-[11px] font-semibold text-[#40515B]"><Network className="h-4 w-4 text-[#5267E8]" />协作流程</h2><span className="text-[7px] font-semibold tracking-[0.08em] text-[#9AA7B0]">LIVE GRAPH</span></div></div>
-              <div className="min-h-0 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,#DCE4EA_1px,transparent_0)] bg-[size:18px_18px] p-5">
-                {selectedWorkflow ? (
-                  <div className="mx-auto flex max-w-[230px] flex-col items-center">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#CDD6DD] bg-white text-[#71818D] shadow-sm"><Send className="h-3.5 w-3.5" /></span>
-                    <span className="h-5 w-px bg-[#C9D4DD]" />
-                    <div className="w-full rounded-2xl border border-[#C7D1FA] bg-[#F4F6FF] p-3 text-center"><Route className="mx-auto h-4 w-4 text-[#5267E8]" /><span className="mt-1.5 block text-[8px] font-semibold text-[#4055C5]">{modeDefinitions[selectedWorkflow.collaboration_mode].label}</span><span className="mt-1 block text-[7px] text-[#8190A0]">{modeDefinitions[selectedWorkflow.collaboration_mode].short}</span></div>
-                    {selectedWorkflow.agents.map((agent, index) => {
-                      const agentRun = result?.runs.find(run => run.agent_name === agent.name);
-                      return (
-                        <div key={`${agent.id}-${index}`} className="flex w-full flex-col items-center">
-                          <span className={`h-5 w-px ${agentRun ? 'bg-[#5267E8]' : 'bg-[#C9D4DD]'}`} />
-                          <div className={`flex w-full items-center gap-2.5 rounded-2xl border p-3 shadow-sm ${agentRun ? 'border-[#BFC9F7] bg-white' : 'border-[#DFE6EB] bg-white/90'}`}>
-                            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${categoryTone[agent.category] || 'bg-[#EEF2F5] text-[#657682]'}`}><Bot className="h-3.5 w-3.5" /></span>
-                            <span className="min-w-0 flex-1"><span className="block truncate text-[8px] font-semibold text-[#40515B]">{agent.name}</span><span className="mt-1 block text-[7px] text-[#8C99A3]">{agent.skill_count} Skills · {agent.knowledge_count} RAG</span></span>
-                            {agentRun ? <CheckCircle2 className="h-3.5 w-3.5 text-[#21865D]" /> : <span className="h-2 w-2 rounded-full bg-[#D3DBE1]" />}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <span className="h-5 w-px bg-[#C9D4DD]" />
-                    <span className={`flex h-8 w-8 items-center justify-center rounded-full border ${result ? 'border-[#9ED4BE] bg-[#EAF7F1] text-[#21865D]' : 'border-[#CDD6DD] bg-white text-[#8A98A2]'}`}><Check className="h-3.5 w-3.5" /></span>
-                  </div>
-                ) : <div className="flex h-full items-center justify-center text-[9px] text-[#8B99A3]">暂无协作方案</div>}
+              <div className="flex min-h-0 flex-1 items-center overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,#DCE4EA_1px,transparent_0)] bg-[size:18px_18px] p-4">
+                {selectedWorkflow ? <RuntimeWorkflowGraph workflow={selectedWorkflow} result={result} /> : <div className="flex h-full w-full items-center justify-center text-[9px] text-[#8B99A3]">暂无协作方案</div>}
               </div>
               <div className="border-t border-[#E8EDF1] bg-[#F8FAFB] px-4 py-3 text-[8px] text-[#788894]">{result ? `运行 ID · ${result.collaboration_id.slice(0, 12)}` : '运行后节点状态会在此更新'}</div>
             </div>

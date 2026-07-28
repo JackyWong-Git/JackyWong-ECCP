@@ -10,8 +10,11 @@
   - `artifacts/design-qa/workflow-graph-focus-v2.jpg`
   - `artifacts/design-qa/creation-run-desktop-v2.jpg`
   - `artifacts/design-qa/creation-run-mobile-v2.jpg`
+  - `artifacts/design-qa/runtime-graph-desktop-v3.jpg`
+  - `artifacts/design-qa/runtime-graph-mobile-v3.jpg`
 - Combined comparison:
   - `artifacts/design-qa/multi-agent-comparison-v2.jpg`
+  - `artifacts/design-qa/runtime-graph-comparison-v3.jpg`
 - Desktop viewport: 1440 x 1000 CSS px.
 - Mobile viewport: 390 x 844 CSS px.
 - State: authenticated superuser, six seeded Agents, two persisted workflows, inline Agent creation open, workflow edit and pre-run states.
@@ -26,6 +29,7 @@ The implementation preserves the reference product model: card-based Agent roles
 - The Create Agent form appears as the first card in the same grid and does not interrupt the user's context with a modal.
 - Workflow Graph renders start, collaboration mode, ordered Agent nodes, step numbers, Skill counts, reordering controls, and finalizer state.
 - Creation Run preserves the reference three-region mental model while using ECCP terminology: collaboration flow, content creation, and run Trace.
+- Runtime graphs now use mode-specific topology: dynamic supervision and routing branch to Agent teams, peer handoff forms a collaboration mesh, while planning remains sequential.
 - Mobile stacks the three runtime regions without horizontal clipping and keeps the four studio tabs in a compact 2 x 2 layout.
 
 ## Fidelity Surfaces
@@ -39,6 +43,7 @@ The implementation preserves the reference product model: card-based Agent roles
 ## Findings
 
 - No remaining P0, P1, or P2 visual or interaction findings.
+- Resolved P1: the first runtime graph rendered every collaboration mode as the same vertical sequence. It now communicates the actual scheduling contract and uses a compact collaboration zone on mobile.
 - P3 accepted: the reference uses more horizontal space because it has no persistent global sidebar. ECCP keeps its navigation, while the runtime remains readable at 1440 px and stacks correctly at 390 px.
 - P3 accepted: workflow graph nodes are intentionally compact because they sit beside editable collaboration settings rather than occupying a dedicated full-screen canvas.
 
