@@ -59,6 +59,7 @@ echo "[deploy] Running health checks..."
 curl -fsS http://127.0.0.1:5000/ >/dev/null
 curl -fsS http://127.0.0.1:8000/accounts/login/ >/dev/null
 curl -fsS http://127.0.0.1:8100/health | tee "${BACKUP_DIR}/api-health.json"
+docker compose ps --status running | tee "${BACKUP_DIR}/compose-status.txt"
 git rev-parse HEAD | tee "${BACKUP_DIR}/commit-after.txt"
 touch "${BACKUP_DIR}/DEPLOY_OK"
 

@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: eccp
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eccp-local-password}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - eccp_postgres:/var/lib/postgresql/data
     healthcheck:
@@ -21,7 +21,7 @@ services:
     image: redis:7.4-alpine
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - eccp_redis:/data
     healthcheck:
@@ -37,8 +37,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-eccp}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-eccp-local-password}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - eccp_minio:/data
 
@@ -68,7 +68,7 @@ services:
       ECCP_API_EMBEDDING_API_KEY: ${ECCP_API_EMBEDDING_API_KEY:-}
       ECCP_API_EMBEDDING_MODEL: ${ECCP_API_EMBEDDING_MODEL:-text-embedding-3-small}
     ports:
-      - "8100:8100"
+      - "127.0.0.1:8100:8100"
     depends_on:
       postgres:
         condition: service_healthy
