@@ -31,6 +31,14 @@ interface RawSearchResult {
 
 export class TopicSearchConfigurationError extends Error {}
 
+const BUILT_IN_RSS_FEEDS: RssFeed[] = [
+  { name: '中新网财经', url: 'https://www.chinanews.com.cn/rss/finance.xml' },
+  { name: '中新网科技', url: 'https://www.chinanews.com.cn/rss/it.xml' },
+  { name: '中新网汽车', url: 'https://www.chinanews.com.cn/rss/auto.xml' },
+  { name: '中新网文化', url: 'https://www.chinanews.com.cn/rss/culture.xml' },
+  { name: '中新网社会', url: 'https://www.chinanews.com.cn/rss/society.xml' },
+];
+
 const asRecord = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
 
@@ -77,7 +85,8 @@ const sourceFromUrl = (value: string) => {
   }
 };
 
-const configuredRssFeeds = (): RssFeed[] => (process.env.TOPIC_SEARCH_RSS_FEEDS ?? '')
+const configuredRssFeeds = (): RssFeed[] => {
+  const configured = (process.env.TOPIC_SEARCH_RSS_FEEDS ?? '')
   .split(/\n|,|;/)
   .map(item => item.trim())
   .filter(Boolean)
@@ -86,7 +95,9 @@ const configuredRssFeeds = (): RssFeed[] => (process.env.TOPIC_SEARCH_RSS_FEEDS 
     const url = (urlParts.length ? urlParts.join('|') : name).trim();
     return { name: urlParts.length ? name.trim() : sourceFromUrl(url), url };
   })
-  .filter(feed => /^https?:\/\//i.test(feed.url));
+    .filter(feed => /^https?:\/\//i.test(feed.url));
+  return configured.length ? configured : BUILT_IN_RSS_FEEDS;
+};
 
 const configuredProviders = (): Exclude<TopicSearchProvider, 'auto'>[] => {
   const providers: Exclude<TopicSearchProvider, 'auto'>[] = [];
@@ -191,23 +202,38 @@ const rssItems = (xml: string, feed: RssFeed): RawSearchResult[] => {
   }).filter(result => result.title && result.url);
 };
 
+const queryTerms = (query: string) => {
+  const normalized = query.toLocaleLowerCase().trim();
+  const explicit = normalized.split(/[\s,，、]+/).filter(Boolean);
+  if (explicit.length > 1 || normalized.length <= 2) return explicit;
+  return Array.from(new Set([normalized, ...Array.from({ length: normalized.length - 1 }, (_, index) => normalized.slice(index, index + 2))]));
+};
+
 const matchesQuery = (result: RawSearchResult, query: string) => {
-  const terms = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const terms = queryTerms(query);
   const haystack = `${result.title} ${result.summary}`.toLocaleLowerCase();
   return terms.some(term => haystack.includes(term));
 };
 
-const searchRss = async (query: string): Promise<RawSearchResult[]> => {
+const withinRange = (publishedAt: string | undefined, range: TopicSearchRange) => {
+  if (!publishedAt) return range === 'month';
+  const published = new Date(publishedAt).getTime();
+  if (Number.isNaN(published)) return range === 'month';
+  const maxAge = range === 'day' ? 86_400_000 : range === 'week' ? 604_800_000 : 2_678_400_000;
+  return Date.now() - published <= maxAge;
+};
+
+const searchRss = async (query: string, range: TopicSearchRange): Promise<RawSearchResult[]> => {
   const feeds = configuredRssFeeds();
   const responses = await Promise.allSettled(feeds.map(async feed => rssItems(await requestText(feed.url), feed)));
   return responses
     .flatMap(response => response.status === 'fulfilled' ? response.value : [])
-    .filter(result => matchesQuery(result, query));
+    .filter(result => matchesQuery(result, query) && withinRange(result.publishedAt, range));
 };
 
 const scoreTopic = (result: RawSearchResult, query: string) => {
   const haystack = `${result.title} ${result.summary}`.toLocaleLowerCase();
-  const terms = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const terms = queryTerms(query);
   const matches = terms.filter(term => haystack.includes(term)).length;
   const titleMatches = terms.filter(term => result.title.toLocaleLowerCase().includes(term)).length;
   let score = Math.min(60, matches * 18 + titleMatches * 12);
@@ -254,7 +280,7 @@ export const searchExternalTopics = async (input: SearchInput): Promise<TopicSea
   const jobs = providers.map(async provider => {
     if (provider === 'openserp') return { provider, results: await searchOpenSerp(input.query, input.range) };
     if (provider === 'searxng') return { provider, results: await searchSearXng(input.query) };
-    return { provider, results: await searchRss(input.query) };
+    return { provider, results: await searchRss(input.query, input.range) };
   });
   const responses = await Promise.allSettled(jobs);
   const failures: string[] = [];

@@ -138,7 +138,14 @@ def test_okf_import_and_graph_flow() -> None:
         assert graph.json()["edges"] == [{"source": "culture/values", "target": "culture/stories"}]
 
 
-def test_topic_discovery_rule_can_run_without_configured_providers() -> None:
+def test_topic_discovery_rule_uses_default_rss_provider(monkeypatch) -> None:
+    async def fake_search_topics(query: str, provider: str, search_range: str):
+        assert query == "员工故事"
+        assert provider == "auto"
+        assert search_range == "week"
+        return [], ["rss"], []
+
+    monkeypatch.setattr("app.topic_discovery.search_topics", fake_search_topics)
     headers = auth_headers(["accounts.view_topics", "accounts.create_content"])
     with TestClient(app) as client:
         created = client.post(
@@ -153,7 +160,7 @@ def test_topic_discovery_rule_can_run_without_configured_providers() -> None:
         )
         assert run.status_code == 200
         assert run.json()["status"] == "completed"
-        assert run.json()["providers"] == []
+        assert run.json()["providers"] == ["rss"]
 
 
 def test_write_requires_create_permission() -> None:

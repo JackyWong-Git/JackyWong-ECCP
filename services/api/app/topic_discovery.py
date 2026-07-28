@@ -1,6 +1,7 @@
 import hashlib
 import re
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from xml.etree import ElementTree
 
@@ -10,6 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import get_settings
 from .models import Topic, TopicDiscoveryRule, TopicDiscoveryRun
+
+BUILT_IN_RSS_FEEDS = [
+    ("中新网财经", "https://www.chinanews.com.cn/rss/finance.xml"),
+    ("中新网科技", "https://www.chinanews.com.cn/rss/it.xml"),
+    ("中新网汽车", "https://www.chinanews.com.cn/rss/auto.xml"),
+    ("中新网文化", "https://www.chinanews.com.cn/rss/culture.xml"),
+    ("中新网社会", "https://www.chinanews.com.cn/rss/society.xml"),
+]
 
 
 def next_run_at(schedule: str, now: datetime | None = None) -> datetime:
@@ -31,16 +40,27 @@ def _source_name(value: str) -> str:
     return (urlparse(value).hostname or "外部来源").removeprefix("www.")
 
 
+def _parse_datetime(value: str) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            parsed = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+
+
 def _score(title: str, summary: str, query: str, published_at: str = "") -> int:
-    terms = [item for item in re.split(r"[\s,，、]+", query.lower()) if item]
+    terms = _query_terms(query)
     haystack = f"{title} {summary}".lower()
     score = min(60, sum(18 for term in terms if term in haystack) + sum(12 for term in terms if term in title.lower()))
-    if published_at:
-        try:
-            age = datetime.now(timezone.utc) - datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-            score += 30 if age <= timedelta(days=1) else 20 if age <= timedelta(days=7) else 10
-        except ValueError:
-            score += 8
+    published = _parse_datetime(published_at)
+    if published:
+        age = datetime.now(timezone.utc) - published
+        score += 30 if age <= timedelta(days=1) else 20 if age <= timedelta(days=7) else 10
     else:
         score += 8
     return min(99, max(1, score))
@@ -57,7 +77,8 @@ def _normalize(items: list[dict], provider: str, query: str) -> list[dict]:
         seen.add(url)
         summary = re.sub(r"<[^>]+>", " ", str(item.get("summary") or "")).strip()
         source_name = str(item.get("source_name") or _source_name(url))
-        published_at = str(item.get("published_at") or "")
+        published = _parse_datetime(str(item.get("published_at") or ""))
+        published_at = published.isoformat() if published else ""
         results.append(
             {
                 "id": hashlib.sha256(f"{provider}:{url}".encode()).hexdigest()[:20],
@@ -138,7 +159,15 @@ def _rss_sources() -> list[tuple[str, str]]:
             continue
         name, separator, url = value.strip().partition("|")
         sources.append((name if separator else _source_name(name), url if separator else name))
-    return sources
+    return sources or BUILT_IN_RSS_FEEDS
+
+
+def _query_terms(query: str) -> list[str]:
+    normalized = query.lower().strip()
+    explicit = [item for item in re.split(r"[\s,，、]+", normalized) if item]
+    if len(explicit) > 1 or len(normalized) <= 2:
+        return explicit
+    return list(dict.fromkeys([normalized, *(normalized[index:index + 2] for index in range(len(normalized) - 1))]))
 
 
 async def _search_rss(client: httpx.AsyncClient, query: str, search_range: str) -> list[dict]:
@@ -156,9 +185,16 @@ async def _search_rss(client: httpx.AsyncClient, query: str, search_range: str) 
             link = (link_node.get("href") if link_node is not None else "") or text("link")
             title = text("title")
             summary = text("description") or text("summary") or text("content")
-            if any(term in f"{title} {summary}".lower() for term in re.split(r"[\s,，、]+", query.lower()) if term):
+            if any(term in f"{title} {summary}".lower() for term in _query_terms(query)):
                 collected.append({"title": title, "summary": summary, "url": link, "source_name": source_name, "published_at": text("pubDate") or text("published")})
-    return _normalize(collected, "rss", query)
+    normalized = _normalize(collected, "rss", query)
+    max_age = {"day": timedelta(days=1), "week": timedelta(days=7), "month": timedelta(days=31)}[search_range]
+    now = datetime.now(timezone.utc)
+    return [
+        item for item in normalized
+        if (published := _parse_datetime(item["published_at"]))
+        and timedelta(0) <= now - published <= max_age
+    ]
 
 
 async def search_topics(query: str, provider: str, search_range: str) -> tuple[list[dict], list[str], list[str]]:
