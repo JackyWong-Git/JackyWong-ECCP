@@ -7,6 +7,20 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="${APP_DIR}/.deploy-backups/release-${STAMP}"
 LOG_FILE="${BACKUP_DIR}/deploy.log"
 
+retry() {
+  local attempt=1
+  local max_attempts=3
+
+  until "$@"; do
+    if (( attempt >= max_attempts )); then
+      return 1
+    fi
+    echo "[deploy] Command failed; retrying in $((attempt * 5)) seconds..."
+    sleep $((attempt * 5))
+    ((attempt += 1))
+  done
+}
+
 mkdir -p "${BACKUP_DIR}"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
@@ -21,7 +35,7 @@ find backend -maxdepth 2 -name "*.sqlite3" -exec cp -a {} "${BACKUP_DIR}/" \;
 
 echo "[deploy] Updating ${BRANCH}..."
 git stash push -m "production-predeploy-${STAMP}" || true
-git fetch origin "${BRANCH}"
+retry git fetch origin "${BRANCH}"
 git merge --ff-only "origin/${BRANCH}"
 
 # Keep the production PyPI mirror override used by the current server image.
