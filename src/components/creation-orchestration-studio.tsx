@@ -553,24 +553,42 @@ export function CreationOrchestrationStudio({ onNavigate, initialTab = 'overview
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#DFE6EC] bg-[#F8FAFB] p-4">
-                <div className="flex items-center justify-between"><div><h3 className="text-[11px] font-semibold text-[#40515B]">执行顺序</h3><p className="mt-1 text-[7px] text-[#8A98A2]">拖动替代：使用箭头调整角色顺序。</p></div><Network className="h-4 w-4 text-[#5267E8]" /></div>
-                <div className="mt-3 space-y-1.5">
+              <div className="overflow-hidden rounded-2xl border border-[#DFE6EC] bg-[#F8FAFB]">
+                <div className="flex items-center justify-between border-b border-[#E2E8ED] bg-white px-4 py-3"><div><h3 className="flex items-center gap-2 text-[10px] font-semibold text-[#40515B]"><Network className="h-3.5 w-3.5 text-[#5267E8]" />Workflow Graph</h3><p className="mt-1 text-[7px] text-[#8A98A2]">实时预览当前协作模式与执行顺序。</p></div><span className="rounded-full bg-[#EEF1FF] px-2 py-1 text-[6px] font-semibold tracking-[0.08em] text-[#5267E8]">LIVE PREVIEW</span></div>
+                <div className="bg-[radial-gradient(circle_at_1px_1px,#DCE4EA_1px,transparent_0)] bg-[size:16px_16px] px-4 py-5">
+                  <div className="mx-auto flex max-w-[250px] flex-col items-center">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#CBD5DD] bg-white text-[#758590] shadow-sm"><Send className="h-3 w-3" /></span>
+                    <ArrowDown className="my-1.5 h-3 w-3 text-[#AAB6BF]" />
+                    <div className="w-full rounded-xl border border-[#C5CFFA] bg-[#F3F5FF] p-2.5 text-center">
+                      {(() => {
+                        const ModeIcon = modeDefinitions[draft.collaboration_mode].icon;
+                        return <ModeIcon className="mx-auto h-3.5 w-3.5 text-[#5267E8]" />;
+                      })()}
+                      <span className="mt-1 block text-[7px] font-semibold text-[#4055C5]">{modeDefinitions[draft.collaboration_mode].label}</span>
+                    </div>
+                    <ArrowDown className="my-1.5 h-3 w-3 text-[#AAB6BF]" />
+                    <div className="w-full space-y-1.5">
                   {draft.agent_ids.map((agentId, index) => {
                     const agent = agents.find(item => item.id === agentId);
                     if (!agent) return null;
                     return (
-                      <div key={agentId} className="flex items-center gap-2 rounded-xl border border-[#E2E8ED] bg-white p-2.5">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#EEF1FF] text-[8px] font-semibold text-[#5267E8]">{index + 1}</span>
-                        <span className="min-w-0 flex-1 truncate text-[8px] font-semibold text-[#52636E]">{agent.name}</span>
-                        <button type="button" aria-label="上移 Agent" disabled={index === 0} onClick={() => moveDraftAgent(index, -1)} className="text-[#8A98A2] disabled:opacity-25"><ArrowUp className="h-3 w-3" /></button>
-                        <button type="button" aria-label="下移 Agent" disabled={index === draft.agent_ids.length - 1} onClick={() => moveDraftAgent(index, 1)} className="text-[#8A98A2] disabled:opacity-25"><ArrowDown className="h-3 w-3" /></button>
+                      <div key={agentId}>
+                        <div className="flex items-center gap-2 rounded-xl border border-[#DDE4E9] bg-white p-2.5 shadow-sm">
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${categoryTone[agent.category] || 'bg-[#EEF2F5] text-[#657682]'}`}><Bot className="h-3 w-3" /></span>
+                          <span className="min-w-0 flex-1"><span className="block truncate text-[8px] font-semibold text-[#52636E]">{agent.name}</span><span className="mt-0.5 block text-[6px] text-[#99A5AD]">步骤 {index + 1} · {agent.skill_bindings.length} Skills</span></span>
+                          <button type="button" aria-label="上移 Agent" disabled={index === 0} onClick={() => moveDraftAgent(index, -1)} className="text-[#8A98A2] disabled:opacity-20"><ArrowUp className="h-3 w-3" /></button>
+                          <button type="button" aria-label="下移 Agent" disabled={index === draft.agent_ids.length - 1} onClick={() => moveDraftAgent(index, 1)} className="text-[#8A98A2] disabled:opacity-20"><ArrowDown className="h-3 w-3" /></button>
+                        </div>
+                        {index < draft.agent_ids.length - 1 ? <ArrowDown className="mx-auto my-1 h-3 w-3 text-[#AAB6BF]" /> : null}
                       </div>
                     );
                   })}
-                  {!draft.agent_ids.length ? <div className="rounded-xl border border-dashed border-[#D5DDE4] p-6 text-center text-[8px] text-[#96A2AA]">从左侧选择参与协作的 Agent</div> : null}
+                      {!draft.agent_ids.length ? <div className="rounded-xl border border-dashed border-[#D5DDE4] bg-white/80 p-6 text-center text-[8px] text-[#96A2AA]">从左侧选择参与协作的 Agent</div> : null}
+                    </div>
+                    {draft.agent_ids.length ? <><ArrowDown className="my-1.5 h-3 w-3 text-[#AAB6BF]" /><span className={`flex h-7 w-7 items-center justify-center rounded-full border ${draft.finalizer_enabled ? 'border-[#9ED4BE] bg-[#EAF7F1] text-[#21865D]' : 'border-[#CBD5DD] bg-white text-[#8A98A2]'}`}><Check className="h-3 w-3" /></span></> : null}
+                  </div>
                 </div>
-                <label className="mt-3 flex items-center gap-2 rounded-xl bg-white p-3"><input type="checkbox" checked={draft.finalizer_enabled} onChange={event => setDraft(current => ({ ...current, finalizer_enabled: event.target.checked }))} className="h-3.5 w-3.5 accent-[#5267E8]" /><span><span className="block text-[8px] font-semibold text-[#52636E]">启用最终合成</span><span className="mt-0.5 block text-[7px] text-[#93A0A9]">动态监督模式由监督者统一验收成果</span></span></label>
+                <label className="flex items-center gap-2 border-t border-[#E2E8ED] bg-white p-3"><input type="checkbox" checked={draft.finalizer_enabled} onChange={event => setDraft(current => ({ ...current, finalizer_enabled: event.target.checked }))} className="h-3.5 w-3.5 accent-[#5267E8]" /><span><span className="block text-[8px] font-semibold text-[#52636E]">启用最终合成</span><span className="mt-0.5 block text-[7px] text-[#93A0A9]">最后一步统一汇总并检查成果</span></span></label>
               </div>
             </div>
           </main>
