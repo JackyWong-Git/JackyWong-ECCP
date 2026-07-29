@@ -43,7 +43,7 @@ interface HomeComposerProps {
   onNavigate: (view: ViewType) => void;
 }
 
-type PlannerStage = 'idle' | 'planning' | 'confirm' | 'executing' | 'completed' | 'failed';
+type PlannerStage = 'idle' | 'planning' | 'confirm' | 'researching' | 'review' | 'producing' | 'completed' | 'failed';
 type StepStatus = 'pending' | 'running' | 'completed' | 'skipped' | 'failed';
 
 interface PlanStep {
@@ -131,6 +131,9 @@ function PlannerPanel({
   const [stage, setStage] = useState<PlannerStage>('idle');
   const [steps, setSteps] = useState<PlanStep[]>(INITIAL_STEPS);
   const [planSummary, setPlanSummary] = useState('');
+  const [researchSummary, setResearchSummary] = useState('');
+  const [finalContent, setFinalContent] = useState('');
+  const [revisionNote, setRevisionNote] = useState('');
   const [activeRun, setActiveRun] = useState<AgentRun | null>(null);
   const [savedTask, setSavedTask] = useState<ContentTaskItem | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -143,6 +146,9 @@ function PlannerPanel({
     setStage('idle');
     setSteps(INITIAL_STEPS);
     setPlanSummary('');
+    setResearchSummary('');
+    setFinalContent('');
+    setRevisionNote('');
     setActiveRun(null);
     setSavedTask(null);
     window.setTimeout(() => inputRef.current?.focus(), 20);
@@ -159,6 +165,9 @@ function PlannerPanel({
     setStage('planning');
     setSteps(INITIAL_STEPS);
     setPlanSummary('');
+    setResearchSummary('');
+    setFinalContent('');
+    setRevisionNote('');
     setSavedTask(null);
     updateStep('understand', 'running', 'Planner 正在识别业务目标');
 
@@ -185,8 +194,8 @@ function PlannerPanel({
     }
   };
 
-  const executePlan = async () => {
-    setStage('executing');
+  const executeResearch = async () => {
+    setStage('researching');
     let searchContext = '本次未启用外部搜索。';
 
     if (webEnabled) {
@@ -223,17 +232,18 @@ function PlannerPanel({
       const result = await executeAgentTask({
         source: 'home',
         input_text: [
-          '你是企业文化内容总编 Agent。用户已经确认下面的执行计划，请直接完成本轮交付。',
+          '你是企业文化内容策划 Agent。用户已经确认执行计划，本阶段只完成调研、选题和大纲，不生成最终脚本。',
           `【所属活动】${activityName}`,
           `【原始需求】${brief.trim()}`,
           `【已确认计划】\n${planSummary}`,
           `【外部搜索线索】\n${searchContext}`,
           '【交付要求】',
           '1. 先说明你对传播目标和受众的判断；',
-          '2. 给出 3 个可选传播选题，并推荐其中 1 个；',
-          '3. 为推荐选题生成清晰的内容大纲；',
-          '4. 生成一份可审核的 90 秒视频脚本或图文正文；',
-          '5. 给出渠道适配、执行节点和风险提示。',
+          '2. 给出 3 个可选传播选题，并说明每个选题的依据；',
+          '3. 明确推荐其中 1 个选题；',
+          '4. 为推荐选题生成清晰的内容大纲；',
+          '5. 给出渠道适配、待补充信息和风险提示；',
+          '6. 不要生成最终脚本，等待用户二次确认选题方向。',
           '请使用中文，结构清晰，不要虚构企业事实；缺失信息要明确标注待确认。',
         ].join('\n'),
         knowledge_enabled: knowledgeEnabled,
@@ -241,6 +251,7 @@ function PlannerPanel({
       });
 
       setActiveRun(result.run);
+      setResearchSummary(result.content);
       const ragStep = result.run.steps.find(step => step.step_type === 'rag');
       if (!knowledgeEnabled) {
         updateStep('knowledge', 'skipped', '用户未启用知识库');
@@ -251,14 +262,56 @@ function PlannerPanel({
         updateStep('knowledge', 'skipped', ragStep?.output_summary || '未检索到可用企业资料');
       }
       updateStep('outline', 'completed', '选题与大纲已生成');
-      updateStep('script', 'completed', `由 ${result.run.agent_name} 生成创作成果`);
-      updateStep('save', 'running', '正在写入任务中心');
+      setStage('review');
+      showToast('选题与大纲已生成，请二次确认创作方向', 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '执行失败';
+      setSteps(current => current.map(step => step.status === 'running' ? { ...step, status: 'failed', detail: message } : step));
+      setStage('failed');
+      showToast(message, 'error');
+    }
+  };
+
+  const generateAndSave = async () => {
+    setStage('producing');
+    updateStep('script', 'running', '正在按已确认方向生成内容');
+
+    try {
+      const result = await executeAgentTask({
+        source: 'home',
+        input_text: [
+          '你是企业文化内容创作 Agent。用户已经二次确认选题与大纲，请完成可进入审核的最终成稿。',
+          `【所属活动】${activityName}`,
+          `【原始需求】${brief.trim()}`,
+          `【已确认执行计划】\n${planSummary}`,
+          `【已确认选题与大纲】\n${researchSummary}`,
+          `【用户补充调整】\n${revisionNote.trim() || '无，按推荐方向执行。'}`,
+          '【交付要求】',
+          '1. 输出可直接审核的 90 秒视频脚本或完整图文正文；',
+          '2. 包含标题、开场、主体、结尾和行动号召；',
+          '3. 附渠道适配建议、制作清单和执行节点；',
+          '4. 不要虚构企业事实，缺失信息请保留明确占位。',
+        ].join('\n'),
+        knowledge_enabled: knowledgeEnabled,
+        web_enabled: false,
+      });
+
+      setActiveRun(result.run);
+      setFinalContent(result.content);
+      updateStep('script', 'completed', `由 ${result.run.agent_name} 生成最终成果`);
+      updateStep('save', 'running', '正在写入活动与任务中心');
 
       const task = await workflowApi<ContentTaskItem>('content-tasks', {
         method: 'POST',
         body: JSON.stringify({
           title: `${activityName} · AI 创作成果`,
-          description: result.content.slice(0, 20_000),
+          description: [
+            '【已确认选题与大纲】',
+            researchSummary,
+            '',
+            '【最终创作成果】',
+            result.content,
+          ].join('\n').slice(0, 20_000),
           project_name: activityName,
           status: 'review',
           priority: 'high',
@@ -280,7 +333,14 @@ function PlannerPanel({
     }
   };
 
-  const busy = stage === 'planning' || stage === 'executing';
+  const busy = stage === 'planning' || stage === 'researching' || stage === 'producing';
+  const showingResearch = stage === 'review' || stage === 'producing';
+  const resultTitle = stage === 'completed'
+    ? '最终创作成果'
+    : showingResearch
+      ? '选题与大纲 · 二次确认'
+      : 'Planner 执行计划';
+  const resultContent = stage === 'completed' ? finalContent : showingResearch ? researchSummary : planSummary;
 
   return (
     <section className={`overflow-hidden rounded-[24px] border border-white/90 bg-white shadow-[0_16px_50px_rgba(38,57,72,0.08)] ${compact ? '' : 'workspace-reveal'}`}>
@@ -291,7 +351,7 @@ function PlannerPanel({
               <Sparkles className="h-3 w-3" /> AI PLANNER
             </span>
             <h2 className="mt-3 text-[18px] font-semibold tracking-[-0.02em] text-[#263640]">今天想完成什么宣传工作？</h2>
-            <p className="mt-1.5 text-[11px] leading-5 text-[#71818D]">先看计划，确认后再执行；成果会自动回到活动与任务中心。</p>
+            <p className="mt-1.5 text-[11px] leading-5 text-[#71818D]">理解需求 → 确认计划 → 搜索与 RAG → 确认选题大纲 → 生成脚本并保存。</p>
           </div>
           {stage !== 'idle' ? (
             <button type="button" onClick={resetPlanner} disabled={busy} className="flex h-9 w-fit items-center gap-1.5 rounded-xl border border-[#DDE5EA] bg-white px-3 text-[10px] font-semibold text-[#657682] disabled:opacity-50">
@@ -340,16 +400,35 @@ function PlannerPanel({
           <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="rounded-2xl border border-[#E1E7F1] bg-white p-4">
               <div className="flex items-center gap-2 text-[11px] font-semibold text-[#5267E8]">
-                <Bot className="h-4 w-4" /> Planner 执行计划
+                <Bot className="h-4 w-4" /> {resultTitle}
               </div>
-              <div className="mt-3 max-h-52 overflow-y-auto whitespace-pre-wrap text-[11px] leading-6 text-[#52636E]">{planSummary}</div>
+              <div className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap text-[11px] leading-6 text-[#52636E]">{resultContent}</div>
               {stage === 'confirm' ? (
                 <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#EDF1F4] pt-4">
-                  <button type="button" onClick={() => void executePlan()} className="flex h-10 items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.2)]">
-                    <Check className="h-4 w-4" /> 确认并执行
+                  <button type="button" onClick={() => void executeResearch()} className="flex h-10 items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.2)]">
+                    <Check className="h-4 w-4" /> 确认计划，开始调研
                   </button>
                   <button type="button" onClick={resetPlanner} className="h-10 rounded-xl px-3 text-[11px] font-semibold text-[#71818D]">重新描述</button>
-                  <span className="ml-auto text-[9px] text-[#9AA8B3]">确认后才会调用搜索、知识库与创作 Agent</span>
+                  <span className="ml-auto text-[9px] text-[#9AA8B3]">确认后调用外部搜索、知识库和策划 Agent</span>
+                </div>
+              ) : null}
+              {stage === 'review' ? (
+                <div className="mt-4 border-t border-[#EDF1F4] pt-4">
+                  <label className="block text-[9px] font-semibold text-[#60717C]">二次确认 · 可补充修改要求</label>
+                  <textarea
+                    value={revisionNote}
+                    onChange={event => setRevisionNote(event.target.value)}
+                    rows={2}
+                    placeholder="例如：采用选题 2，语气更年轻，重点突出一线员工故事"
+                    className="mt-2 w-full resize-none rounded-xl border border-[#DFE6EB] bg-[#F8FAFC] px-3 py-2 text-[10px] leading-5 text-[#40515C] outline-none focus:border-[#AEBBF4]"
+                  />
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => void generateAndSave()} className="flex h-10 items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.2)]">
+                      <WandSparkles className="h-4 w-4" /> 确认方向，生成并保存
+                    </button>
+                    <button type="button" onClick={resetPlanner} className="h-10 rounded-xl px-3 text-[11px] font-semibold text-[#71818D]">重新规划</button>
+                    <span className="ml-auto text-[9px] text-[#9AA8B3]">最终成果自动归入“{activityName}”</span>
+                  </div>
                 </div>
               ) : null}
               {stage === 'completed' && savedTask ? (
@@ -543,6 +622,8 @@ function ManagerHome({
         </button>
       </header>
 
+      <PlannerPanel onNavigate={onNavigate} onTaskSaved={onTaskSaved} />
+
       <section className="workspace-reveal grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(metric => {
           const Icon = metric.icon;
@@ -592,10 +673,6 @@ function ManagerHome({
         </div>
       </section>
 
-      <div>
-        <div className="mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#5267E8]" /><h2 className="text-[13px] font-semibold text-[#40515C]">发起一项宣传工作</h2><span className="text-[9px] text-[#8A99A4]">计划确认后再执行</span></div>
-        <PlannerPanel compact onNavigate={onNavigate} onTaskSaved={onTaskSaved} />
-      </div>
     </div>
   );
 }
