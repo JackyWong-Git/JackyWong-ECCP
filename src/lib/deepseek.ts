@@ -30,6 +30,8 @@ export async function createDeepSeekChatCompletion(input: {
   user: AuthenticatedUser;
   messages: DeepSeekMessage[];
   model?: string;
+  maxTokens?: number;
+  temperature?: number;
 }) {
   const response = await fetch(fastApiUrl(['v1', 'model-runtime', 'chat']), {
     method: 'POST',
@@ -37,8 +39,8 @@ export async function createDeepSeekChatCompletion(input: {
     body: JSON.stringify({
       model: input.model,
       messages: input.messages,
-      max_tokens: 2400,
-      temperature: 0.65,
+      max_tokens: input.maxTokens ?? 2400,
+      temperature: input.temperature ?? 0.65,
     }),
     cache: 'no-store',
     signal: AbortSignal.timeout(90_000),

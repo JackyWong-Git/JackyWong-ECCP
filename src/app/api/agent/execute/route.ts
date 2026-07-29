@@ -70,6 +70,8 @@ export async function POST(request: Request) {
       ? body.input_text.trim()
       : messages.at(-1)?.role === 'user' ? messages.at(-1)?.content || '' : '';
     if (!inputText) return NextResponse.json({ error: '请提供有效的任务内容。' }, { status: 400 });
+    const requestedMaxTokens = typeof body.max_tokens === 'number' ? body.max_tokens : 2400;
+    const maxTokens = Math.min(4000, Math.max(200, Math.round(requestedMaxTokens)));
 
     run = await callRuntime(user, ['v1', 'agent-runs'], {
       input_text: inputText,
@@ -87,6 +89,10 @@ export async function POST(request: Request) {
       : '';
     const result = await createDeepSeekChatCompletion({
       user,
+      maxTokens,
+      temperature: typeof body.temperature === 'number'
+        ? Math.min(1.2, Math.max(0, body.temperature))
+        : 0.65,
       messages: [
         { role: 'system', content: `${run.system_prompt}${ragContext}` },
         ...(messages.length ? messages : [{ role: 'user' as const, content: inputText }]),

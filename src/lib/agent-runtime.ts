@@ -64,6 +64,8 @@ export async function executeAgentTask(payload: {
   conversation_id?: string;
   knowledge_enabled?: boolean;
   web_enabled?: boolean;
+  max_tokens?: number;
+  temperature?: number;
 }): Promise<AgentExecutionResult> {
   const response = await fetch('/api/agent/execute', {
     method: 'POST',
