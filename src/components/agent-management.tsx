@@ -129,22 +129,29 @@ export function AgentManagement({ embedded = false }: { embedded?: boolean }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [agentData, skillData, knowledgeData, runtimeData] = await Promise.all([
-        api<{ items: AgentItem[] }>('/api/backend/v1/agents'),
-        api<{ items: SkillItem[] }>('/api/backend/v1/skills?status=installed'),
-        api<{ items: KnowledgeBaseItem[] }>('/api/backend/v1/knowledge-bases'),
-        getModelRuntimeStatus(),
-      ]);
+      const agentData = await api<{ items: AgentItem[] }>('/api/backend/v1/agents');
       setAgents(agentData.items);
-      setSkills(skillData.items.filter(item => item.installation?.enabled));
-      setKnowledgeBases(knowledgeData.items);
-      setModelRuntime(runtimeData);
-      setCreateForm(current => ({ ...current, model_id: runtimeData.model }));
       const nextSelected = agentData.items.find(item => item.id === selectedId) ?? agentData.items[0];
       if (nextSelected) {
         setSelectedId(nextSelected.id);
         setDraftPrompt(nextSelected.current_prompt);
         setDraftModel(nextSelected.model_id);
+      }
+
+      const [skillResult, knowledgeResult, runtimeResult] = await Promise.allSettled([
+        api<{ items: SkillItem[] }>('/api/backend/v1/skills?status=installed'),
+        api<{ items: KnowledgeBaseItem[] }>('/api/backend/v1/knowledge-bases'),
+        getModelRuntimeStatus(),
+      ]);
+      if (skillResult.status === 'fulfilled') {
+        setSkills(skillResult.value.items.filter(item => item.installation?.enabled));
+      }
+      if (knowledgeResult.status === 'fulfilled') {
+        setKnowledgeBases(knowledgeResult.value.items);
+      }
+      if (runtimeResult.status === 'fulfilled') {
+        setModelRuntime(runtimeResult.value);
+        setCreateForm(current => ({ ...current, model_id: runtimeResult.value.model }));
       }
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Agent 数据加载失败', 'error');
