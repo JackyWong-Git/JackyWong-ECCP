@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Bot,
   CheckCircle2,
   Circle,
   Clock3,
@@ -11,11 +12,13 @@ import {
   Search,
   Send,
   Sparkles,
+  Workflow,
   UserRound,
   X,
 } from 'lucide-react';
 import { useDeferredValue, useEffect, useState } from 'react';
 import { type ViewType } from '@/lib/access-control';
+import { listAgentRuns, type AgentRun } from '@/lib/agent-runtime';
 import {
   type ContentTaskItem,
   type ListResponse,
@@ -55,7 +58,9 @@ const filters: Array<{ id: 'all' | TaskStatus; label: string }> = [
 
 export function TaskCenter({ onNavigate }: TaskCenterProps) {
   const [tasks, setTasks] = useState<ContentTaskItem[]>([]);
+  const [agentRuns, setAgentRuns] = useState<AgentRun[]>([]);
   const [loading, setLoading] = useState(true);
+  const [runsLoading, setRunsLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | TaskStatus>('all');
   const [viewMode, setViewMode] = useState<'list' | 'board'>('list');
@@ -73,6 +78,15 @@ export function TaskCenter({ onNavigate }: TaskCenterProps) {
       .then(payload => { if (active) setTasks(payload.items); })
       .catch(error => showToast(error instanceof Error ? error.message : '任务加载失败', 'error'))
       .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    listAgentRuns({ limit: 8 })
+      .then(payload => { if (active) setAgentRuns(payload.items); })
+      .catch(error => showToast(error instanceof Error ? error.message : 'Agent 运行记录加载失败', 'error'))
+      .finally(() => { if (active) setRunsLoading(false); });
     return () => { active = false; };
   }, []);
 
@@ -143,9 +157,37 @@ export function TaskCenter({ onNavigate }: TaskCenterProps) {
     <div className="min-h-full overflow-x-hidden bg-[#F2F6F8] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div><p className="text-[11px] font-semibold text-[#5267E8]">内容生产线</p><h1 className="mt-1 text-[28px] font-semibold tracking-[-0.035em] text-[#17232D]">任务中心</h1><p className="mt-2 text-[12px] text-[#71818D]">从制作、审核到发布，状态全程留痕。</p></div>
+          <div><p className="text-[11px] font-semibold text-[#5267E8]">智能协同执行</p><h1 className="mt-1 text-[28px] font-semibold tracking-[-0.035em] text-[#17232D]">Agent 任务中心</h1><p className="mt-2 text-[12px] text-[#71818D]">统一查看 Agent 运行、项目任务、审核与发布，全程留痕。</p></div>
           <button type="button" onClick={() => setShowCreate(true)} className="flex h-10 w-fit items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.20)]"><Plus className="h-4 w-4" /> 新建任务</button>
         </div>
+
+        <section className="mt-6 overflow-hidden rounded-[22px] border border-[#DFE5F4] bg-[linear-gradient(135deg,#F8F9FF_0%,#F5FBFA_100%)] shadow-[0_10px_30px_rgba(45,63,93,0.05)]">
+          <div className="flex items-center justify-between border-b border-[#E5E9F3] px-4 py-3.5 sm:px-5">
+            <div className="flex items-center gap-2.5"><span className="ai-gradient flex h-8 w-8 items-center justify-center rounded-xl text-white"><Workflow className="h-4 w-4" /></span><span><span className="block text-[11px] font-semibold text-[#34454F]">Agent 运行</span><span className="mt-0.5 block text-[8px] text-[#8A99A4]">来自工作台、主 Agent 与创作编排室</span></span></div>
+            <button type="button" onClick={() => onNavigate('studio')} className="text-[9px] font-semibold text-[#5267E8]">进入创作编排室</button>
+          </div>
+          {runsLoading ? <div className="flex h-28 items-center justify-center text-[10px] text-[#71818D]"><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />正在读取 Agent 运行</div> : agentRuns.length ? (
+            <div className="no-scrollbar flex gap-3 overflow-x-auto p-4 sm:p-5">
+              {agentRuns.map(run => {
+                const completed = run.status === 'completed';
+                const failed = run.status === 'failed';
+                return (
+                  <article key={run.id} className="w-[270px] shrink-0 rounded-2xl border border-white bg-white p-4 shadow-[0_8px_22px_rgba(38,57,72,0.055)]">
+                    <div className="flex items-start gap-3">
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${completed ? 'bg-[#EAF7F1] text-[#21865D]' : failed ? 'bg-[#FCECEF] text-[#B44F65]' : 'bg-[#EEF0FF] text-[#5267E8]'}`}><Bot className="h-4 w-4" /></span>
+                      <span className="min-w-0 flex-1"><span className="block truncate text-[10px] font-semibold text-[#3D4E59]">{run.agent_name || '待路由 Agent'}</span><span className="mt-1 block text-[8px] text-[#8A99A4]">{run.source === 'assistant' ? '主 Agent' : run.source === 'home' ? '工作台' : run.source} · {formatDate(run.created_at, true)}</span></span>
+                      <span className={`rounded-lg px-2 py-1 text-[8px] font-semibold ${completed ? 'bg-[#EAF7F1] text-[#21865D]' : failed ? 'bg-[#FCECEF] text-[#B44F65]' : 'bg-[#EEF0FF] text-[#5267E8]'}`}>{completed ? '已完成' : failed ? '失败' : '运行中'}</span>
+                    </div>
+                    <p className="mt-3 line-clamp-2 min-h-10 text-[9px] leading-5 text-[#657681]">{run.input_text || '等待任务输入'}</p>
+                    <div className="mt-3 flex items-center justify-between border-t border-[#EDF1F4] pt-3 text-[8px] text-[#82919C]"><span>{run.steps.length} 个步骤</span><span className="truncate pl-3">{run.model_id || '自动模型路由'}</span></div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : <div className="px-5 py-10 text-center text-[10px] text-[#8796A1]">暂无 Agent 运行，可从主 Agent 发起第一项工作</div>}
+        </section>
+
+        <div className="mt-7 flex items-center gap-3"><span className="text-[12px] font-semibold text-[#34454F]">项目与内容任务</span><span className="rounded-full bg-white px-2.5 py-1 text-[9px] text-[#82919C]">{tasks.length}</span></div>
 
         {showCreate && <div className="mt-5 flex flex-col gap-2 rounded-2xl border border-[#DCE4F8] bg-white p-3 shadow-sm sm:flex-row"><input autoFocus value={newTitle} onChange={event => setNewTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void createTask(); }} placeholder="输入任务标题" className="h-10 flex-1 rounded-xl border border-[#E1E8ED] px-3 text-sm outline-none focus:border-[#7083EE]"/><button disabled={busyId === 'create'} onClick={() => void createTask()} className="rounded-xl bg-[#5267E8] px-5 text-xs font-semibold text-white disabled:opacity-60">创建</button><button onClick={() => setShowCreate(false)} className="rounded-xl px-4 text-xs text-[#71818D]">取消</button></div>}
 

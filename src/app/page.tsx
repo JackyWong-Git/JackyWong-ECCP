@@ -19,6 +19,7 @@ import { RAGKnowledgeBase } from '@/components/rag-knowledge-base';
 import { ExternalConnections } from '@/components/external-connections';
 import { GlobalAssistant } from '@/components/global-assistant';
 import { TaskCenter } from '@/components/task-center';
+import { MainAgentWorkspace } from '@/components/main-agent-workspace';
 import { AuthGuard, useAuth } from '@/components/auth-guard';
 import { canAccessView, type ViewType } from '@/lib/access-control';
 
@@ -56,6 +57,8 @@ function AuthenticatedWorkspace() {
     switch (currentView) {
       case 'home':
         return <HomeComposer onNavigate={navigateTo} />;
+      case 'assistant':
+        return <MainAgentWorkspace onNavigate={navigateTo} />;
       case 'tasks':
         return <TaskCenter onNavigate={navigateTo} />;
       case 'studio':

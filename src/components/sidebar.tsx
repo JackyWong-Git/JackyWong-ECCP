@@ -10,6 +10,7 @@ import {
   Megaphone,
   LayoutDashboard,
   ListTodo,
+  MessagesSquare,
   PanelLeft,
   PlugZap,
   Puzzle,
@@ -45,6 +46,7 @@ const navGroups: NavGroup[] = [
     label: '智能工作',
     items: [
       { id: 'home', label: '工作台', icon: LayoutDashboard },
+      { id: 'assistant', label: '主 Agent', icon: MessagesSquare },
       { id: 'studio', label: '创作编排室', icon: Sparkles },
     ],
   },
@@ -52,7 +54,7 @@ const navGroups: NavGroup[] = [
     label: '协同执行',
     items: [
       { id: 'campaigns', label: '活动宣传', icon: Megaphone, badge: '2' },
-      { id: 'tasks', label: '任务中心', icon: ListTodo, badge: '3' },
+      { id: 'tasks', label: 'Agent 任务中心', icon: ListTodo, badge: '3' },
       { id: 'knowledge', label: '文件与知识库', icon: Files },
       { id: 'requests', label: '协作与报送', icon: UsersRound },
     ],

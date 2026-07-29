@@ -35,6 +35,11 @@ const viewContext: Record<ViewType, { label: string; guidance: string; suggestio
     guidance: '帮助用户了解平台状态、调度跨模块任务和处理待办，不直接修改高风险配置。',
     suggestions: ['检查今天需要处理的事项', '帮我规划一个跨模块任务'],
   },
+  assistant: {
+    label: '主 Agent',
+    guidance: '帮助用户理解复杂需求、创建项目、调度 Agent，并把成果保存到业务任务中。',
+    suggestions: ['帮我创建一个活动宣传项目', '查看刚才项目的下一步'],
+  },
   studio: {
     label: '创作编排室',
     guidance: '帮助用户配置 Agent 与能力、选择协作模式、生成内容并理解运行 Trace 和审核发布步骤。',
@@ -46,8 +51,8 @@ const viewContext: Record<ViewType, { label: string; guidance: string; suggestio
     suggestions: ['帮我设计一个小红书 Agent', '检查当前 Agent 配置是否完整'],
   },
   tasks: {
-    label: '任务中心',
-    guidance: '帮助用户解释任务状态、梳理阻塞点和下一步操作。',
+    label: 'Agent 任务中心',
+    guidance: '帮助用户解释 Agent 运行和内容任务状态、梳理阻塞点和下一步操作。',
     suggestions: ['帮我判断哪些任务最紧急', '解释待审批任务的风险'],
   },
   campaigns: {

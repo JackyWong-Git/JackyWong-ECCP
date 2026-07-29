@@ -60,7 +60,7 @@ const INITIAL_STEPS: PlanStep[] = [
   { id: 'knowledge', label: '查询知识库', description: '引用企业话术、案例和历史资料', status: 'pending' },
   { id: 'outline', label: '生成选题与大纲', description: '形成内容策略和结构', status: 'pending' },
   { id: 'script', label: '生成内容脚本', description: '输出可审核的创作成果', status: 'pending' },
-  { id: 'save', label: '保存到活动', description: '写入任务中心并进入审核', status: 'pending' },
+  { id: 'save', label: '保存到活动', description: '写入 Agent 任务中心并进入审核', status: 'pending' },
 ];
 
 const TASK_STATUS: Record<TaskStatus, { label: string; tone: string }> = {
@@ -103,7 +103,7 @@ const QUICK_ENTRIES: Array<{
   { label: '选题报送', description: '提交部门宣传线索', view: 'requests', icon: Lightbulb, tone: 'bg-[#FFF4E8] text-[#B66B20]' },
   { label: 'AI 创作', description: '进入创作编排室', view: 'studio', icon: WandSparkles, tone: 'bg-[#EEF0FF] text-[#5267E8]' },
   { label: '活动协同', description: '查看项目与节点', view: 'campaigns', icon: Megaphone, tone: 'bg-[#E9F8F5] text-[#218B70]' },
-  { label: '任务中心', description: '跟进待办与审核', view: 'tasks', icon: ListTodo, tone: 'bg-[#EBF7FF] text-[#347FAF]' },
+  { label: 'Agent 任务中心', description: '跟进运行、待办与审核', view: 'tasks', icon: ListTodo, tone: 'bg-[#EBF7FF] text-[#347FAF]' },
 ];
 
 function getGreeting() {
@@ -299,7 +299,7 @@ function PlannerPanel({
       setActiveRun(result.run);
       setFinalContent(result.content);
       updateStep('script', 'completed', `由 ${result.run.agent_name} 生成最终成果`);
-      updateStep('save', 'running', '正在写入活动与任务中心');
+      updateStep('save', 'running', '正在写入活动与 Agent 任务中心');
 
       const task = await workflowApi<ContentTaskItem>('content-tasks', {
         method: 'POST',
@@ -520,7 +520,7 @@ function MemberHome({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-[14px] font-semibold text-[#2D3E48]">今日待办</h2>
-              <p className="mt-1 text-[9px] text-[#8A99A4]">真实同步任务中心</p>
+              <p className="mt-1 text-[9px] text-[#8A99A4]">真实同步 Agent 任务中心</p>
             </div>
             <button type="button" onClick={() => onNavigate('tasks')} className="flex items-center gap-1 text-[10px] font-semibold text-[#5267E8]">全部任务 <ChevronRight className="h-3.5 w-3.5" /></button>
           </div>
