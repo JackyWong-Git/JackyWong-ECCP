@@ -3,20 +3,27 @@
 import {
   BarChart3,
   Bell,
+  BriefcaseBusiness,
   ChevronDown,
   CircleHelp,
   FilePenLine,
+  Heart,
+  History,
+  LogOut,
   Megaphone,
   LayoutDashboard,
   ListTodo,
   PlugZap,
   Puzzle,
   Search,
+  Settings2,
+  ShieldCheck,
   Sparkles,
+  UserRound,
 } from 'lucide-react';
 import { type ComponentType, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { canAccessView, type ViewType } from '@/lib/access-control';
-import { useAuth } from '@/components/auth-guard';
+import { useAuth, type WorkspaceRole } from '@/components/auth-guard';
 import { showToast } from './toast';
 
 interface TopBarProps {
@@ -69,14 +76,27 @@ const notifications = [
 ];
 
 export function TopBar({ currentView, onViewChange }: TopBarProps) {
-  const { user } = useAuth();
+  const { user, workspaceRole, setWorkspaceRole } = useAuth();
+  const [csrfToken, setCsrfToken] = useState('');
   const [showCommand, setShowCommand] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
   const commandPanelRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const token = document.cookie
+      .split('; ')
+      .find(cookie => cookie.startsWith('csrftoken='))
+      ?.split('=')
+      .slice(1)
+      .join('=');
+    setCsrfToken(token ? decodeURIComponent(token) : '');
+  }, []);
 
   const filteredCommands = commandDefinitions.filter(command => {
     if (!canAccessView(user.permissions, command.view)) return false;
@@ -94,6 +114,7 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
       if (event.key === 'Escape') {
         setShowCommand(false);
         setShowNotifications(false);
+        setShowProfile(false);
       }
     };
 
@@ -108,21 +129,23 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
   }, [showCommand]);
 
   useEffect(() => {
-    if (!showCommand && !showNotifications) return;
+    if (!showCommand && !showNotifications && !showProfile) return;
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (showCommand && commandPanelRef.current && !commandPanelRef.current.contains(target)) setShowCommand(false);
       if (showNotifications && notificationRef.current && !notificationRef.current.contains(target)) setShowNotifications(false);
+      if (showProfile && profileRef.current && !profileRef.current.contains(target)) setShowProfile(false);
     };
 
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [showCommand, showNotifications]);
+  }, [showCommand, showNotifications, showProfile]);
 
   const openCommand = () => {
     setQuery('');
     setShowCommand(true);
     setShowNotifications(false);
+    setShowProfile(false);
   };
 
   const runCommand = (command: CommandDefinition) => {
@@ -171,6 +194,7 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
               onClick={() => {
                 setShowNotifications(open => !open);
                 setShowCommand(false);
+                setShowProfile(false);
               }}
               className="relative flex h-9 w-9 items-center justify-center rounded-xl text-[#687985] transition-colors hover:bg-[#F1F5F8] hover:text-[#5267E8]"
             >
@@ -214,10 +238,79 @@ export function TopBar({ currentView, onViewChange }: TopBarProps) {
             <CircleHelp className="h-[18px] w-[18px]" strokeWidth={1.8} />
           </button>
 
-          <button type="button" className="ml-1 flex items-center gap-1.5 rounded-xl p-1 transition-colors hover:bg-[#F1F5F8]">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#DCE4FF] text-[11px] font-semibold text-[#4256C5]">{user.displayName.slice(-1)}</span>
-            <ChevronDown className="hidden h-3.5 w-3.5 text-[#83929D] sm:block" />
-          </button>
+          <div className="relative" ref={profileRef}>
+            <button
+              type="button"
+              aria-label="个人中心"
+              aria-expanded={showProfile}
+              onClick={() => {
+                setShowProfile(open => !open);
+                setShowCommand(false);
+                setShowNotifications(false);
+              }}
+              className="ml-1 flex items-center gap-1.5 rounded-xl p-1 transition-colors hover:bg-[#F1F5F8]"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#DCE4FF] text-[11px] font-semibold text-[#4256C5]">{user.displayName.slice(-1)}</span>
+              <ChevronDown className="hidden h-3.5 w-3.5 text-[#83929D] sm:block" />
+            </button>
+
+            {showProfile ? (
+              <div className="absolute right-0 top-12 w-[min(340px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-[#E1E8ED] bg-white shadow-[0_18px_50px_rgba(31,50,68,0.17)]">
+                <div className="bg-[linear-gradient(135deg,#F3F5FF,#F1FAFC)] p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[13px] font-semibold text-[#5267E8] shadow-sm">{user.displayName.slice(-2)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-semibold text-[#263640]">{user.displayName}</span>
+                      <span className="mt-0.5 block truncate text-[10px] text-[#71818D]">{user.employeeId} · {user.organizationLabel || user.department}</span>
+                    </span>
+                  </div>
+                  <div className="mt-4 rounded-xl border border-white bg-white/70 p-1">
+                    <div className="grid grid-cols-2 gap-1">
+                      {([
+                        { id: 'member', label: '普通员工', icon: UserRound },
+                        { id: 'manager', label: '管理者', icon: ShieldCheck },
+                      ] as Array<{ id: WorkspaceRole; label: string; icon: typeof UserRound }>).map(option => {
+                        const Icon = option.icon;
+                        const active = workspaceRole === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => {
+                              setWorkspaceRole(option.id);
+                              setShowProfile(false);
+                              onViewChange('home');
+                              showToast(`已切换为${option.label}演示视角`, 'success');
+                            }}
+                            className={`flex h-9 items-center justify-center gap-1.5 rounded-lg text-[11px] font-semibold transition-colors ${active ? 'bg-[#5267E8] text-white shadow-sm' : 'text-[#667985] hover:bg-white'}`}
+                          >
+                            <Icon className="h-3.5 w-3.5" /> {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[9px] text-[#8A99A4]">切换仅影响首页演示视角，不改变真实账号权限。</p>
+                </div>
+                <div className="p-2">
+                  {[
+                    { label: '个人资料', icon: BriefcaseBusiness, action: () => showToast('个人资料由企业员工目录统一维护', 'info') },
+                    { label: '我的收藏', icon: Heart, action: () => showToast('收藏功能将在内容资产阶段接入', 'info') },
+                    { label: '最近打开', icon: History, action: () => setShowProfile(false) },
+                    { label: '系统设置', icon: Settings2, action: () => { setShowProfile(false); onViewChange('design-system'); } },
+                  ].map(item => {
+                    const Icon = item.icon;
+                    return <button key={item.label} type="button" onClick={item.action} className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[11px] font-medium text-[#52636E] hover:bg-[#F4F7FA]"><Icon className="h-4 w-4 text-[#7B8B96]" />{item.label}</button>;
+                  })}
+                  <form method="post" action={`${(process.env.NEXT_PUBLIC_DJANGO_URL || 'http://localhost:8000').replace(/\/$/, '')}/accounts/logout/`}>
+                    <input type="hidden" name="csrfmiddlewaretoken" value={csrfToken} />
+                    <button type="submit" className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[11px] font-medium text-[#C94F56] hover:bg-[#FFF3F3]"><LogOut className="h-4 w-4" />退出登录</button>
+                  </form>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 

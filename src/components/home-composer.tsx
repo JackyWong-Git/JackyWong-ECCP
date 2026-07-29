@@ -2,504 +2,635 @@
 
 import {
   ArrowUp,
-  BookOpen,
+  Bot,
   CalendarDays,
   Check,
   CheckCircle2,
   ChevronRight,
+  Circle,
   Clock3,
   Database,
-  LoaderCircle,
-  FileAudio,
-  FileText,
+  FilePenLine,
+  FolderKanban,
   Globe2,
-  Image as ImageIcon,
-  MessageSquareText,
-  Mic2,
-  Paperclip,
-  PenLine,
+  LayoutDashboard,
+  Lightbulb,
+  ListTodo,
+  LoaderCircle,
+  Megaphone,
+  RotateCcw,
+  Search,
   Sparkles,
-  Video,
+  UsersRound,
+  WandSparkles,
   X,
 } from 'lucide-react';
-import { type ChangeEvent, type ComponentType, useEffect, useRef, useState } from 'react';
-import { type ViewType } from '@/lib/access-control';
-import { executeAgentTask, listAgentRuns, type AgentRun } from '@/lib/agent-runtime';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth-guard';
+import { type ViewType } from '@/lib/access-control';
+import { executeAgentTask, type AgentRun } from '@/lib/agent-runtime';
+import { type TopicSearchResponse } from '@/lib/topic-search-types';
+import {
+  type ContentTaskItem,
+  type ListResponse,
+  type TaskStatus,
+  formatDate,
+  workflowApi,
+} from '@/lib/workflow-api';
 import { showToast } from './toast';
 
 interface HomeComposerProps {
   onNavigate: (view: ViewType) => void;
 }
 
-interface WorkTask {
-  id: string;
-  title: string;
-  project: string;
-  due: string;
-  status: string;
-}
+type PlannerStage = 'idle' | 'planning' | 'confirm' | 'executing' | 'completed' | 'failed';
+type StepStatus = 'pending' | 'running' | 'completed' | 'skipped' | 'failed';
 
-interface ToolDefinition {
-  name: string;
+interface PlanStep {
+  id: 'understand' | 'search' | 'knowledge' | 'outline' | 'script' | 'save';
+  label: string;
   description: string;
-  recent: string;
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-  view: ViewType;
-  tone: string;
-  iconTone: string;
+  status: StepStatus;
+  detail?: string;
 }
 
-const QUICK_TASKS = [
-  { label: '写一份方案', prompt: '帮我写一份企业文化活动方案，面向全体员工，包含目标、流程、传播计划和执行排期。' },
-  { label: '总结文件', prompt: '总结我接下来上传的文件，提取核心结论、风险和建议，整理成管理层一页简报。' },
-  { label: '整理会议纪要', prompt: '整理会议记录，输出会议结论、待办事项、负责人和截止时间。' },
-  { label: '生成视频脚本', prompt: '围绕员工成长故事生成一份 90 秒视频脚本，包含旁白、画面和字幕建议。' },
-  { label: '制作海报', prompt: '为企业文化主题活动制作一份海报创意方案，给出主视觉方向、标题和关键信息层级。' },
-  { label: '分析数据', prompt: '分析我接下来上传的数据，找出趋势、异常和可执行建议，并生成简洁图表说明。' },
+const INITIAL_STEPS: PlanStep[] = [
+  { id: 'understand', label: '理解需求', description: '识别活动目标、受众和交付物', status: 'pending' },
+  { id: 'search', label: '搜索热点', description: '检索近期外部话题和传播线索', status: 'pending' },
+  { id: 'knowledge', label: '查询知识库', description: '引用企业话术、案例和历史资料', status: 'pending' },
+  { id: 'outline', label: '生成选题与大纲', description: '形成内容策略和结构', status: 'pending' },
+  { id: 'script', label: '生成内容脚本', description: '输出可审核的创作成果', status: 'pending' },
+  { id: 'save', label: '保存到活动', description: '写入任务中心并进入审核', status: 'pending' },
 ];
 
-const TOOLS: ToolDefinition[] = [
-  { name: 'AI 文案', description: '方案、通知、脚本与总结', recent: '昨天使用', icon: PenLine, view: 'studio', tone: 'bg-[#EEF1FF]', iconTone: 'text-[#5B68DD]' },
-  { name: 'AI 图片', description: '海报、封面与内容配图', recent: '3 天前使用', icon: ImageIcon, view: 'studio', tone: 'bg-[#F6EEFF]', iconTone: 'text-[#8257D7]' },
-  { name: 'AI 视频', description: '脚本、分镜与字幕生成', recent: '上周使用', icon: Video, view: 'scripts', tone: 'bg-[#EBF7FF]', iconTone: 'text-[#3689C4]' },
-  { name: 'AI 会议', description: '转写、纪要与行动项', recent: '今天 10:20', icon: FileAudio, view: 'requests', tone: 'bg-[#EAF8F4]', iconTone: 'text-[#299773]' },
-  { name: 'AI 文件', description: '阅读、对比与信息提取', recent: '今天 09:42', icon: FileText, view: 'knowledge', tone: 'bg-[#FFF4E8]', iconTone: 'text-[#C27A2C]' },
-];
-
-const PROJECTS = [
-  { name: '22 周年文化传播', stage: '内容制作', progress: 76, due: '本周五', color: '#5267E8' },
-  { name: '新员工文化融入', stage: '方案确认', progress: 48, due: '7 月 29 日', color: '#4FC7E8' },
-  { name: '品牌故事案例库', stage: '素材归档', progress: 91, due: '8 月 2 日', color: '#25A76F' },
-];
-
-const SCHEDULES = [
-  { time: '10:30', title: '月度内容例会', detail: '3 号会议室 · 6 人' },
-  { time: '14:00', title: '员工故事采访', detail: '线上会议 · 45 分钟' },
-  { time: '16:30', title: '活动传播周检', detail: '活动宣传 · 4 人' },
-];
-
-const RECENT_FILES = [
-  { name: '22周年传播方案 V3.docx', detail: '刚刚更新 · 活动文件', type: 'DOC' },
-  { name: '员工采访素材汇总.pdf', detail: '昨天更新 · 团队空间', type: 'PDF' },
-  { name: '7月内容排期.xlsx', detail: '2 天前更新 · 我的文件', type: 'XLS' },
-];
-
-const STORAGE_KEY = 'eccp-workspace-composer';
-
-function formatRunTime(value: string) {
-  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value);
-  const date = new Date(hasTimezone ? value : `${value}Z`);
-  if (Number.isNaN(date.getTime())) return '时间未知';
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-}
-
-function runToWorkTask(run: AgentRun): WorkTask {
-  const input = run.input_text.trim() || '未命名任务';
-  return {
-    id: run.id,
-    title: input.length > 38 ? `${input.slice(0, 38)}…` : input,
-    project: `${run.agent_name} · ${run.model_id}`,
-    due: formatRunTime(run.created_at),
-    status: run.status,
-  };
-}
-
-const RUN_STATUS: Record<string, { label: string; tone: string }> = {
-  running: { label: '运行中', tone: 'bg-[#EEF1FF] text-[#5267E8]' },
-  completed: { label: '已完成', tone: 'bg-[#EAF7F1] text-[#21865D]' },
-  failed: { label: '失败', tone: 'bg-[#FFF0F0] text-[#C94F56]' },
-  awaiting_approval: { label: '待审批', tone: 'bg-[#FFF5E8] text-[#B36F27]' },
-  ready_for_execution: { label: '待执行', tone: 'bg-[#EBF7FF] text-[#317FAE]' },
-  rejected: { label: '已拒绝', tone: 'bg-[#F1F4F7] text-[#748590]' },
+const TASK_STATUS: Record<TaskStatus, { label: string; tone: string }> = {
+  todo: { label: '待开始', tone: 'bg-[#EEF2F5] text-[#687985]' },
+  doing: { label: '制作中', tone: 'bg-[#EDF0FF] text-[#4660D3]' },
+  review: { label: '待审核', tone: 'bg-[#FFF4E6] text-[#B36F27]' },
+  approved: { label: '已通过', tone: 'bg-[#EAF7F1] text-[#21865D]' },
+  published: { label: '已发布', tone: 'bg-[#E8F7FA] text-[#087B8C]' },
+  cancelled: { label: '已取消', tone: 'bg-[#F8EDF0] text-[#9A6470]' },
 };
 
-export function HomeComposer({ onNavigate }: HomeComposerProps) {
+const MEMBER_CAMPAIGNS = [
+  { name: '22 周年文化传播', stage: '内容制作', progress: 76, due: '本周五', tone: '#5267E8' },
+  { name: '新员工文化融入', stage: '方案确认', progress: 48, due: '8 月 6 日', tone: '#18A4B8' },
+  { name: '品牌故事案例库', stage: '素材归档', progress: 91, due: '8 月 12 日', tone: '#25A76F' },
+];
+
+const MANAGER_CAMPAIGNS = [
+  { name: '22 周年文化传播', owner: '熊臣坤', status: '内容制作', updated: '10 分钟前', progress: 76 },
+  { name: '新员工文化融入计划', owner: '蔡雯欣', status: '方案确认', updated: '今天 09:20', progress: 48 },
+  { name: '一线员工故事征集', owner: '樊莉芳', status: '部门报送', updated: '昨天 17:42', progress: 63 },
+  { name: '品牌故事案例库', owner: '滕紫原', status: '素材归档', updated: '昨天 15:08', progress: 91 },
+];
+
+const DEPARTMENT_TOPICS = [
+  { name: '生产管理部', value: 28 },
+  { name: '销售本部', value: 24 },
+  { name: '研发本部', value: 19 },
+  { name: '品质管理部', value: 16 },
+  { name: '人事总务部', value: 14 },
+];
+
+const QUICK_ENTRIES: Array<{
+  label: string;
+  description: string;
+  view: ViewType;
+  icon: typeof Lightbulb;
+  tone: string;
+}> = [
+  { label: '选题报送', description: '提交部门宣传线索', view: 'requests', icon: Lightbulb, tone: 'bg-[#FFF4E8] text-[#B66B20]' },
+  { label: 'AI 创作', description: '进入创作编排室', view: 'studio', icon: WandSparkles, tone: 'bg-[#EEF0FF] text-[#5267E8]' },
+  { label: '活动协同', description: '查看项目与节点', view: 'campaigns', icon: Megaphone, tone: 'bg-[#E9F8F5] text-[#218B70]' },
+  { label: '任务中心', description: '跟进待办与审核', view: 'tasks', icon: ListTodo, tone: 'bg-[#EBF7FF] text-[#347FAF]' },
+];
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 11) return '上午好';
+  if (hour < 14) return '中午好';
+  if (hour < 18) return '下午好';
+  return '晚上好';
+}
+
+function PlannerPanel({
+  compact = false,
+  onNavigate,
+  onTaskSaved,
+}: {
+  compact?: boolean;
+  onNavigate: (view: ViewType) => void;
+  onTaskSaved: (task: ContentTaskItem) => void;
+}) {
   const { user } = useAuth();
   const [brief, setBrief] = useState('');
+  const [activityName, setActivityName] = useState('22 周年文化传播');
+  const [webEnabled, setWebEnabled] = useState(true);
   const [knowledgeEnabled, setKnowledgeEnabled] = useState(true);
-  const [webEnabled, setWebEnabled] = useState(false);
-  const [mode, setMode] = useState('智能模式');
-  const [fileNames, setFileNames] = useState<string[]>([]);
-  const [tasks, setTasks] = useState<WorkTask[]>([]);
-  const [runsLoading, setRunsLoading] = useState(true);
-  const [isListening, setIsListening] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedTitle, setGeneratedTitle] = useState('');
+  const [stage, setStage] = useState<PlannerStage>('idle');
+  const [steps, setSteps] = useState<PlanStep[]>(INITIAL_STEPS);
+  const [planSummary, setPlanSummary] = useState('');
   const [activeRun, setActiveRun] = useState<AgentRun | null>(null);
+  const [savedTask, setSavedTask] = useState<ContentTaskItem | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const cached = window.localStorage.getItem(STORAGE_KEY);
-    if (!cached) return;
-    try {
-      const parsed = JSON.parse(cached) as Partial<{ brief: string; knowledgeEnabled: boolean; webEnabled: boolean; mode: string }>;
-      if (typeof parsed.brief === 'string') setBrief(parsed.brief);
-      if (typeof parsed.knowledgeEnabled === 'boolean') setKnowledgeEnabled(parsed.knowledgeEnabled);
-      if (typeof parsed.webEnabled === 'boolean') setWebEnabled(parsed.webEnabled);
-      if (typeof parsed.mode === 'string') setMode(parsed.mode);
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ brief, knowledgeEnabled, webEnabled, mode }));
-  }, [brief, knowledgeEnabled, mode, webEnabled]);
-
-  useEffect(() => {
-    let cancelled = false;
-    listAgentRuns({ limit: 6, source: 'home' })
-      .then(({ items }) => {
-        if (!cancelled) setTasks(items.map(runToWorkTask));
-      })
-      .catch(error => {
-        if (!cancelled) showToast(error instanceof Error ? error.message : '无法加载运行记录', 'error');
-      })
-      .finally(() => {
-        if (!cancelled) setRunsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const applyQuickTask = (prompt: string) => {
-    setBrief(prompt);
-    inputRef.current?.focus();
+  const updateStep = (id: PlanStep['id'], status: StepStatus, detail?: string) => {
+    setSteps(current => current.map(step => step.id === id ? { ...step, status, detail } : step));
   };
 
-  const handleFiles = (event: ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.target.files ?? []).map(file => file.name);
-    if (!selected.length) return;
-    setFileNames(current => Array.from(new Set([...current, ...selected])).slice(0, 4));
-    showToast(`已添加 ${selected.length} 个文件`, 'success');
-    event.target.value = '';
+  const resetPlanner = () => {
+    setStage('idle');
+    setSteps(INITIAL_STEPS);
+    setPlanSummary('');
+    setActiveRun(null);
+    setSavedTask(null);
+    window.setTimeout(() => inputRef.current?.focus(), 20);
   };
 
-  const startWork = async () => {
-    const content = brief.trim();
-    if (!content) {
+  const createPlan = async () => {
+    const request = brief.trim();
+    if (request.length < 4) {
       inputRef.current?.focus();
-      showToast('先描述你想完成的工作', 'info');
+      showToast('请先描述本次宣传工作想完成什么', 'info');
       return;
     }
-    if (isGenerating) return;
 
-    setIsGenerating(true);
-    setGeneratedTitle('');
-    setActiveRun(null);
+    setStage('planning');
+    setSteps(INITIAL_STEPS);
+    setPlanSummary('');
+    setSavedTask(null);
+    updateStep('understand', 'running', 'Planner 正在识别业务目标');
+
     try {
       const result = await executeAgentTask({
         source: 'home',
-        input_text: fileNames.length ? `${content}\n\n附件：${fileNames.join('、')}` : content,
-        knowledge_enabled: knowledgeEnabled,
-        web_enabled: webEnabled,
+        input_text: [
+          '你是企业内容协同平台的 Planner，只制定执行计划，不直接撰写最终成稿。',
+          `所属活动：${activityName}`,
+          `用户需求：${request}`,
+          '请识别真正的传播目标、受众、渠道和交付物，并按“外部搜索、企业知识库、选题大纲、内容脚本、保存审核”给出简洁可确认的计划。',
+        ].join('\n'),
+        knowledge_enabled: false,
+        web_enabled: false,
       });
-      setGeneratedTitle(result.content.slice(0, 80));
       setActiveRun(result.run);
-      setTasks(current => [runToWorkTask(result.run), ...current.filter(item => item.id !== result.run.id)].slice(0, 6));
-      showToast(`已由 ${result.run.agent_name} 完成并写入运行记录`, 'success');
+      setPlanSummary(result.content);
+      updateStep('understand', 'completed', `由 ${result.run.agent_name} 完成需求拆解`);
+      setStage('confirm');
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Agent 执行失败', 'error');
-    } finally {
-      setIsGenerating(false);
+      updateStep('understand', 'failed', error instanceof Error ? error.message : '计划生成失败');
+      setStage('failed');
+      showToast(error instanceof Error ? error.message : '计划生成失败', 'error');
     }
   };
 
+  const executePlan = async () => {
+    setStage('executing');
+    let searchContext = '本次未启用外部搜索。';
+
+    if (webEnabled) {
+      updateStep('search', 'running', '正在检索近期外部话题');
+      try {
+        const response = await fetch('/api/topics/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: brief.trim().slice(0, 100), provider: 'auto', range: 'week' }),
+        });
+        const payload = await response.json() as TopicSearchResponse & { error?: string };
+        if (!response.ok) throw new Error(payload.error || '外部搜索暂时不可用');
+        if (payload.results.length) {
+          searchContext = payload.results.slice(0, 6).map((topic, index) => (
+            `${index + 1}. ${topic.title}（${topic.sourceName}）\n${topic.summary}`
+          )).join('\n');
+          updateStep('search', 'completed', `找到 ${payload.results.length} 条线索 · ${payload.providers.join(' / ')}`);
+        } else {
+          searchContext = `没有检索到有效结果。${payload.failures.join('；')}`;
+          updateStep('search', 'skipped', payload.failures[0] || '本次没有匹配的外部线索');
+        }
+      } catch (error) {
+        searchContext = `外部搜索未完成：${error instanceof Error ? error.message : '未知错误'}`;
+        updateStep('search', 'skipped', '数据源暂不可用，已继续使用企业知识库');
+      }
+    } else {
+      updateStep('search', 'skipped', '用户未启用外部搜索');
+    }
+
+    updateStep('knowledge', 'running', knowledgeEnabled ? '正在检索企业知识库' : '未启用知识库');
+    updateStep('outline', 'running', '正在组织选题与内容结构');
+
+    try {
+      const result = await executeAgentTask({
+        source: 'home',
+        input_text: [
+          '你是企业文化内容总编 Agent。用户已经确认下面的执行计划，请直接完成本轮交付。',
+          `【所属活动】${activityName}`,
+          `【原始需求】${brief.trim()}`,
+          `【已确认计划】\n${planSummary}`,
+          `【外部搜索线索】\n${searchContext}`,
+          '【交付要求】',
+          '1. 先说明你对传播目标和受众的判断；',
+          '2. 给出 3 个可选传播选题，并推荐其中 1 个；',
+          '3. 为推荐选题生成清晰的内容大纲；',
+          '4. 生成一份可审核的 90 秒视频脚本或图文正文；',
+          '5. 给出渠道适配、执行节点和风险提示。',
+          '请使用中文，结构清晰，不要虚构企业事实；缺失信息要明确标注待确认。',
+        ].join('\n'),
+        knowledge_enabled: knowledgeEnabled,
+        web_enabled: false,
+      });
+
+      setActiveRun(result.run);
+      const ragStep = result.run.steps.find(step => step.step_type === 'rag');
+      if (!knowledgeEnabled) {
+        updateStep('knowledge', 'skipped', '用户未启用知识库');
+      } else if (ragStep?.status === 'completed') {
+        const referenceCount = ragStep.metadata.references?.length ?? result.references.length;
+        updateStep('knowledge', 'completed', referenceCount ? `引用 ${referenceCount} 条企业资料` : '已完成知识检索');
+      } else {
+        updateStep('knowledge', 'skipped', ragStep?.output_summary || '未检索到可用企业资料');
+      }
+      updateStep('outline', 'completed', '选题与大纲已生成');
+      updateStep('script', 'completed', `由 ${result.run.agent_name} 生成创作成果`);
+      updateStep('save', 'running', '正在写入任务中心');
+
+      const task = await workflowApi<ContentTaskItem>('content-tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: `${activityName} · AI 创作成果`,
+          description: result.content.slice(0, 20_000),
+          project_name: activityName,
+          status: 'review',
+          priority: 'high',
+          owner_employee_id: user.employeeId,
+          owner_name: user.displayName,
+          ai_created: true,
+        }),
+      });
+      setSavedTask(task);
+      onTaskSaved(task);
+      updateStep('save', 'completed', '已保存并进入待审核状态');
+      setStage('completed');
+      showToast('创作成果已保存到活动任务，等待审核', 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '执行失败';
+      setSteps(current => current.map(step => step.status === 'running' ? { ...step, status: 'failed', detail: message } : step));
+      setStage('failed');
+      showToast(message, 'error');
+    }
+  };
+
+  const busy = stage === 'planning' || stage === 'executing';
+
   return (
-    <div className="min-h-full overflow-x-hidden bg-[radial-gradient(circle_at_72%_-20%,rgba(115,87,255,0.10),transparent_32%),linear-gradient(180deg,#F5F8FA_0%,#F2F6F8_46%,#EEF3F6_100%)] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <div className="mx-auto max-w-[1440px] space-y-7">
-        <section className="workspace-reveal">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[14px] font-semibold text-[#5267E8]">下午好，{user.displayName.slice(-2)}</p>
-              <h2 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[#17232D] sm:text-[32px] lg:text-[36px]">
-                今天，想让 AI 帮你完成什么？
-              </h2>
-              <p className="mt-2 text-[13px] leading-6 text-[#687985] sm:text-[14px]">从灵感到执行，让工作少绕一步。</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onNavigate('tasks')}
-              className="w-fit rounded-xl border border-[#DDE5EA] bg-white px-3.5 py-2 text-[11px] font-medium text-[#60707D] shadow-sm transition-colors hover:border-[#BAC7F5] hover:text-[#5267E8]"
-            >
-              {tasks.length ? `最近有 ${tasks.length} 次 AI 运行，点击查看详情` : '还没有 AI 运行记录，发送任务即可开始'}
-            </button>
+    <section className={`overflow-hidden rounded-[24px] border border-white/90 bg-white shadow-[0_16px_50px_rgba(38,57,72,0.08)] ${compact ? '' : 'workspace-reveal'}`}>
+      <div className="bg-[radial-gradient(circle_at_92%_12%,rgba(79,199,232,0.18),transparent_15rem),linear-gradient(135deg,#F7F8FF_0%,#FFFFFF_56%,#F0FAFC_100%)] p-5 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E9ECFF] px-2.5 py-1 text-[9px] font-semibold text-[#5267E8]">
+              <Sparkles className="h-3 w-3" /> AI PLANNER
+            </span>
+            <h2 className="mt-3 text-[18px] font-semibold tracking-[-0.02em] text-[#263640]">今天想完成什么宣传工作？</h2>
+            <p className="mt-1.5 text-[11px] leading-5 text-[#71818D]">先看计划，确认后再执行；成果会自动回到活动与任务中心。</p>
           </div>
+          {stage !== 'idle' ? (
+            <button type="button" onClick={resetPlanner} disabled={busy} className="flex h-9 w-fit items-center gap-1.5 rounded-xl border border-[#DDE5EA] bg-white px-3 text-[10px] font-semibold text-[#657682] disabled:opacity-50">
+              <RotateCcw className="h-3.5 w-3.5" /> 新任务
+            </button>
+          ) : null}
+        </div>
 
-          <div className="relative mt-6 rounded-[22px] bg-[linear-gradient(135deg,rgba(115,87,255,0.62),rgba(85,123,255,0.52)_50%,rgba(79,199,232,0.58))] p-px shadow-[0_16px_40px_rgba(65,84,150,0.11)]">
-            <div className="rounded-[21px] bg-white p-4 sm:p-5">
-              <textarea
-                ref={inputRef}
-                value={brief}
-                onChange={event => setBrief(event.target.value)}
-                onKeyDown={event => {
-                  if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') startWork();
-                }}
-                rows={3}
-                aria-label="描述你想完成的工作"
-                placeholder="描述你想完成的工作，或上传文件开始处理。"
-                className="min-h-[74px] w-full resize-none bg-transparent text-[15px] leading-7 text-[#263640] outline-none placeholder:text-[#A0ACB5] sm:text-[16px]"
+        {stage === 'idle' || stage === 'planning' ? (
+          <div className="mt-5 rounded-2xl border border-[#DDE4F4] bg-white/90 p-2 shadow-[0_8px_24px_rgba(82,103,232,0.06)]">
+            <textarea
+              ref={inputRef}
+              value={brief}
+              disabled={busy}
+              onChange={event => setBrief(event.target.value)}
+              onKeyDown={event => {
+                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void createPlan();
+              }}
+              rows={compact ? 2 : 3}
+              placeholder="例如：我要做 22 周年故事会宣传，面向全体员工，需要选题、大纲和 90 秒视频脚本"
+              className="w-full resize-none bg-transparent px-2 py-2 text-[13px] leading-6 text-[#34444E] outline-none placeholder:text-[#9AA8B3] disabled:opacity-60"
+            />
+            <div className="flex flex-col gap-2 border-t border-[#EDF1F4] px-1 pt-2 sm:flex-row sm:items-center">
+              <input
+                value={activityName}
+                disabled={busy}
+                onChange={event => setActivityName(event.target.value)}
+                aria-label="所属活动"
+                className="h-9 min-w-0 flex-1 rounded-xl bg-[#F5F7FA] px-3 text-[10px] font-medium text-[#52636E] outline-none ring-[#C9D2F8] focus:ring-1"
               />
-
-              {fileNames.length ? (
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {fileNames.map(fileName => (
-                    <span key={fileName} className="flex max-w-full items-center gap-1.5 rounded-lg border border-[#E2E8ED] bg-[#F7F9FC] px-2.5 py-1.5 text-[10px] text-[#5F707C]">
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-[#5267E8]" />
-                      <span className="max-w-[180px] truncate">{fileName}</span>
-                      <button type="button" aria-label={`移除 ${fileName}`} onClick={() => setFileNames(current => current.filter(item => item !== fileName))} className="rounded text-[#91A0AB] hover:text-[#DC5A60]">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap items-center gap-2 border-t border-[#EDF1F4] pt-3">
-                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFiles} />
-                <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="添加文件" className="flex h-9 w-9 items-center justify-center rounded-xl text-[#71818D] transition-colors hover:bg-[#F1F4F8] hover:text-[#5267E8]">
-                  <Paperclip className="h-[18px] w-[18px]" strokeWidth={1.8} />
+              <div className="flex items-center gap-1.5">
+                <button type="button" aria-pressed={webEnabled} disabled={busy} onClick={() => setWebEnabled(value => !value)} className={`flex h-9 items-center gap-1.5 rounded-xl px-3 text-[10px] font-semibold ${webEnabled ? 'bg-[#EAF7FA] text-[#138096]' : 'bg-[#F2F5F7] text-[#81909B]'}`}>
+                  <Globe2 className="h-3.5 w-3.5" /> 外部搜索
                 </button>
-                <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="添加图片" className="flex h-9 w-9 items-center justify-center rounded-xl text-[#71818D] transition-colors hover:bg-[#F1F4F8] hover:text-[#5267E8]">
-                  <ImageIcon className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                <button type="button" aria-pressed={knowledgeEnabled} disabled={busy} onClick={() => setKnowledgeEnabled(value => !value)} className={`flex h-9 items-center gap-1.5 rounded-xl px-3 text-[10px] font-semibold ${knowledgeEnabled ? 'bg-[#EEF0FF] text-[#5267E8]' : 'bg-[#F2F5F7] text-[#81909B]'}`}>
+                  <Database className="h-3.5 w-3.5" /> 知识库
                 </button>
-                <button
-                  type="button"
-                  aria-label="语音输入"
-                  onClick={() => {
-                    setIsListening(listening => !listening);
-                    showToast(isListening ? '语音输入已停止' : '语音输入已开启', 'info');
-                  }}
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${isListening ? 'bg-[#FFF0F1] text-[#DC5A60]' : 'text-[#71818D] hover:bg-[#F1F4F8] hover:text-[#5267E8]'}`}
-                >
-                  <Mic2 className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                <button type="button" disabled={busy} onClick={() => void createPlan()} className="flex h-9 items-center gap-1.5 rounded-xl bg-[#5267E8] px-4 text-[10px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.2)] disabled:opacity-60">
+                  {stage === 'planning' ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <ArrowUp className="h-3.5 w-3.5" />}
+                  {stage === 'planning' ? '正在规划' : '生成计划'}
                 </button>
-
-                <div className="mx-0.5 hidden h-5 w-px bg-[#E3E9ED] lg:block" />
-
-                <button type="button" role="switch" aria-label="知识库" aria-checked={knowledgeEnabled} onClick={() => setKnowledgeEnabled(value => !value)} className={`flex h-9 shrink-0 items-center gap-2 rounded-xl border px-2.5 text-[11px] font-medium transition-all ${knowledgeEnabled ? 'border-[#D9DFFF] bg-[#F4F5FF] text-[#4054C9]' : 'border-transparent text-[#60707D] hover:bg-[#F4F7FA]'}`}>
-                  <Database className="h-4 w-4 text-[#5267E8]" strokeWidth={1.8} />
-                  <span className="hidden sm:inline">知识库</span>
-                  <span aria-hidden="true" className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 shadow-inner transition-colors ${knowledgeEnabled ? 'bg-[#5267E8]' : 'bg-[#CBD5DC]'}`}>
-                    <span className={`block h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(23,35,45,0.28)] transition-transform duration-200 ${knowledgeEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </span>
-                </button>
-
-                <button type="button" role="switch" aria-label="联网搜索" aria-checked={webEnabled} onClick={() => setWebEnabled(value => !value)} className={`flex h-9 shrink-0 items-center gap-2 rounded-xl border px-2.5 text-[11px] font-medium transition-all ${webEnabled ? 'border-[#CDE8EF] bg-[#EFF9FB] text-[#267E98]' : 'border-transparent text-[#60707D] hover:bg-[#F4F7FA]'}`}>
-                  <Globe2 className="h-4 w-4 text-[#3FA3C2]" strokeWidth={1.8} />
-                  <span className="hidden sm:inline">联网搜索</span>
-                  <span aria-hidden="true" className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 shadow-inner transition-colors ${webEnabled ? 'bg-[#36A6C4]' : 'bg-[#CBD5DC]'}`}>
-                    <span className={`block h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgba(23,35,45,0.28)] transition-transform duration-200 ${webEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </span>
-                </button>
-
-                <div className="flex w-full items-center justify-end gap-2 lg:ml-auto lg:w-auto">
-                  <select value={mode} onChange={event => setMode(event.target.value)} aria-label="工作模式" className="h-9 rounded-xl border border-[#E1E8ED] bg-[#F8FAFC] px-2 text-[11px] font-medium text-[#60707D] outline-none focus:border-[#AEBBF4] sm:px-3">
-                    <option>智能模式</option>
-                    <option>快速模式</option>
-                    <option>深度分析</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={startWork}
-                    disabled={isGenerating}
-                    aria-label="发送任务"
-                    className="ai-gradient flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-[0_8px_18px_rgba(82,103,232,0.28)] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70"
-                  >
-                    {isGenerating ? <Sparkles className="h-[18px] w-[18px] animate-pulse" strokeWidth={1.9} /> : <ArrowUp className="h-[19px] w-[19px]" strokeWidth={2} />}
-                  </button>
-                </div>
               </div>
             </div>
           </div>
+        ) : (
+          <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="rounded-2xl border border-[#E1E7F1] bg-white p-4">
+              <div className="flex items-center gap-2 text-[11px] font-semibold text-[#5267E8]">
+                <Bot className="h-4 w-4" /> Planner 执行计划
+              </div>
+              <div className="mt-3 max-h-52 overflow-y-auto whitespace-pre-wrap text-[11px] leading-6 text-[#52636E]">{planSummary}</div>
+              {stage === 'confirm' ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#EDF1F4] pt-4">
+                  <button type="button" onClick={() => void executePlan()} className="flex h-10 items-center gap-2 rounded-xl bg-[#5267E8] px-4 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(82,103,232,0.2)]">
+                    <Check className="h-4 w-4" /> 确认并执行
+                  </button>
+                  <button type="button" onClick={resetPlanner} className="h-10 rounded-xl px-3 text-[11px] font-semibold text-[#71818D]">重新描述</button>
+                  <span className="ml-auto text-[9px] text-[#9AA8B3]">确认后才会调用搜索、知识库与创作 Agent</span>
+                </div>
+              ) : null}
+              {stage === 'completed' && savedTask ? (
+                <div className="mt-4 flex flex-col gap-3 rounded-xl bg-[#F0FAF6] p-3 sm:flex-row sm:items-center">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#25A76F]"><CheckCircle2 className="h-4 w-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[11px] font-semibold text-[#2D5546]">成果已保存到“{savedTask.project_name}”</span>
+                    <span className="mt-0.5 block text-[9px] text-[#6D8C80]">任务状态：待审核 · 负责人：{savedTask.owner_name}</span>
+                  </span>
+                  <button type="button" onClick={() => onNavigate('tasks')} className="flex h-9 items-center justify-center gap-1 rounded-xl bg-white px-3 text-[10px] font-semibold text-[#21865D]">
+                    查看成果 <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : null}
+              {stage === 'failed' ? (
+                <button type="button" onClick={resetPlanner} className="mt-4 flex h-9 items-center gap-1.5 rounded-xl bg-[#FFF1F1] px-3 text-[10px] font-semibold text-[#C94F56]">
+                  <RotateCcw className="h-3.5 w-3.5" /> 调整后重试
+                </button>
+              ) : null}
+            </div>
 
-          <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
-            {QUICK_TASKS.map(task => (
-              <button key={task.label} type="button" onClick={() => applyQuickTask(task.prompt)} className="shrink-0 rounded-full border border-[#DFE6EB] bg-white/80 px-3 py-1.5 text-[11px] font-medium text-[#60707D] transition-colors hover:border-[#B9C8FF] hover:bg-[#F3F5FF] hover:text-[#5267E8]">
-                {task.label}
+            <div className="rounded-2xl border border-[#E1E7F1] bg-[#F8FAFC] p-3">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <span className="text-[10px] font-semibold text-[#52636E]">执行进度</span>
+                <span className="text-[9px] text-[#8A99A4]">{activeRun ? activeRun.agent_name : '等待确认'}</span>
+              </div>
+              <div className="space-y-1">
+                {steps.map((step, index) => (
+                  <div key={step.id} className="flex items-start gap-2.5 rounded-xl bg-white px-3 py-2.5">
+                    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                      step.status === 'completed' ? 'bg-[#E7F7F0] text-[#21865D]'
+                        : step.status === 'running' ? 'bg-[#E9ECFF] text-[#5267E8]'
+                          : step.status === 'failed' ? 'bg-[#FFF0F0] text-[#C94F56]'
+                            : step.status === 'skipped' ? 'bg-[#F0F3F5] text-[#8A99A4]'
+                              : 'border border-[#D8E0E6] text-[#A0ADB7]'
+                    }`}>
+                      {step.status === 'completed' ? <Check className="h-3 w-3" />
+                        : step.status === 'running' ? <LoaderCircle className="h-3 w-3 animate-spin" />
+                          : step.status === 'failed' ? <X className="h-3 w-3" />
+                            : <span className="text-[8px]">{index + 1}</span>}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[10px] font-semibold text-[#40515C]">{step.label}</span>
+                      <span className="mt-0.5 block truncate text-[8px] text-[#8A99A4]">{step.detail || step.description}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MemberHome({
+  tasks,
+  tasksLoading,
+  onNavigate,
+  onTaskSaved,
+}: {
+  tasks: ContentTaskItem[];
+  tasksLoading: boolean;
+  onNavigate: (view: ViewType) => void;
+  onTaskSaved: (task: ContentTaskItem) => void;
+}) {
+  const { user } = useAuth();
+  const myTasks = tasks.filter(task => task.owner_employee_id === user.employeeId || task.owner_name === user.displayName);
+  const visibleTasks = (myTasks.length ? myTasks : tasks).slice(0, 5);
+
+  return (
+    <div className="mx-auto max-w-[1440px] space-y-6">
+      <header className="workspace-reveal flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[10px] font-semibold tracking-[0.16em] text-[#5267E8]">企业内容协同平台 V1.0</p>
+          <h1 className="mt-2 text-[26px] font-semibold tracking-[-0.04em] text-[#1E2D37]">{getGreeting()}，{user.displayName}</h1>
+          <p className="mt-1.5 text-[11px] text-[#71818D]">今天有 {visibleTasks.filter(task => task.status !== 'published').length} 项内容工作等待推进。</p>
+        </div>
+        <span className="flex w-fit items-center gap-2 rounded-xl border border-[#DFE6EB] bg-white px-3 py-2 text-[10px] text-[#657682]">
+          <CalendarDays className="h-3.5 w-3.5 text-[#5267E8]" /> {new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date())}
+        </span>
+      </header>
+
+      <PlannerPanel onNavigate={onNavigate} onTaskSaved={onTaskSaved} />
+
+      <section className="workspace-reveal grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.75fr)]">
+        <div className="rounded-[22px] border border-white/90 bg-white p-5 shadow-[0_12px_36px_rgba(38,57,72,0.06)]">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[14px] font-semibold text-[#2D3E48]">今日待办</h2>
+              <p className="mt-1 text-[9px] text-[#8A99A4]">真实同步任务中心</p>
+            </div>
+            <button type="button" onClick={() => onNavigate('tasks')} className="flex items-center gap-1 text-[10px] font-semibold text-[#5267E8]">全部任务 <ChevronRight className="h-3.5 w-3.5" /></button>
+          </div>
+          <div className="mt-4 divide-y divide-[#EDF1F4]">
+            {tasksLoading ? (
+              <div className="flex h-32 items-center justify-center text-[10px] text-[#84939E]"><LoaderCircle className="mr-2 h-4 w-4 animate-spin" />正在读取待办</div>
+            ) : visibleTasks.length ? visibleTasks.map(task => {
+              const status = TASK_STATUS[task.status];
+              return (
+                <button key={task.id} type="button" onClick={() => onNavigate('tasks')} className="grid w-full gap-2 py-3 text-left sm:grid-cols-[minmax(0,1fr)_130px_90px] sm:items-center">
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${task.ai_created ? 'bg-[#EEF0FF] text-[#5267E8]' : 'bg-[#F1F5F7] text-[#7D8D98]'}`}>
+                      {task.ai_created ? <Sparkles className="h-3.5 w-3.5" /> : <Circle className="h-3.5 w-3.5" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[11px] font-semibold text-[#40515C]">{task.title}</span>
+                      <span className="mt-1 block truncate text-[9px] text-[#8A99A4]">{task.project_name}</span>
+                    </span>
+                  </span>
+                  <span className="hidden items-center gap-1.5 text-[9px] text-[#71818D] sm:flex"><Clock3 className="h-3 w-3" />{formatDate(task.due_at, true)}</span>
+                  <span className={`w-fit rounded-lg px-2 py-1 text-[8px] font-semibold ${status.tone}`}>{status.label}</span>
+                </button>
+              );
+            }) : <div className="py-12 text-center text-[10px] text-[#8796A1]">今天暂无待办，可以从上方发起一项宣传工作</div>}
+          </div>
+        </div>
+
+        <div className="rounded-[22px] border border-white/90 bg-white p-5 shadow-[0_12px_36px_rgba(38,57,72,0.06)]">
+          <div className="flex items-center justify-between">
+            <div><h2 className="text-[14px] font-semibold text-[#2D3E48]">我的活动</h2><p className="mt-1 text-[9px] text-[#8A99A4]">我参与的宣传项目</p></div>
+            <button type="button" onClick={() => onNavigate('campaigns')} className="text-[10px] font-semibold text-[#5267E8]">查看全部</button>
+          </div>
+          <div className="mt-4 space-y-3">
+            {MEMBER_CAMPAIGNS.map(campaign => (
+              <button key={campaign.name} type="button" onClick={() => onNavigate('campaigns')} className="w-full rounded-2xl border border-[#E8EDF1] p-3 text-left transition-colors hover:border-[#C9D2F8]">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate text-[10px] font-semibold text-[#40515C]">{campaign.name}</span>
+                  <span className="shrink-0 text-[8px] text-[#8A99A4]">{campaign.due}</span>
+                </div>
+                <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#EEF2F5]"><div className="h-full rounded-full" style={{ width: `${campaign.progress}%`, backgroundColor: campaign.tone }} /></div>
+                <div className="mt-2 flex justify-between text-[8px] text-[#82919C]"><span>{campaign.stage}</span><span>{campaign.progress}%</span></div>
               </button>
             ))}
           </div>
+        </div>
+      </section>
 
-          {isGenerating || generatedTitle ? (
-            <div role="status" aria-live="polite" className="mt-4 flex items-center gap-3 rounded-2xl border border-[#DFE5FF] bg-[#F6F7FF] px-4 py-3">
-              <span className="ai-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white">
-                {isGenerating ? <Sparkles className="h-[17px] w-[17px] animate-pulse" /> : <Check className="h-[17px] w-[17px]" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-semibold text-[#3446A8]">{isGenerating ? '正在路由 Agent、RAG 与 Skill' : activeRun ? `由 ${activeRun.agent_name} 承接 · ${activeRun.status === 'awaiting_approval' ? '等待审批' : '运行已记录'}` : '已生成待确认结果'}</span>
-                <span className="mt-0.5 block truncate text-[11px] text-[#6D79A7]">{isGenerating ? '任务会写入服务端运行记录，不再使用本地模拟计时。' : generatedTitle}</span>
-              </span>
-              {!isGenerating ? <button type="button" onClick={() => onNavigate(activeRun?.approval ? 'studio' : 'tasks')} className="shrink-0 text-[11px] font-semibold text-[#5267E8]">{activeRun?.approval ? '进入编排室处理' : '查看结果'}</button> : null}
-            </div>
-          ) : null}
-        </section>
+      <section className="workspace-reveal">
+        <div className="mb-3 flex items-end justify-between"><div><h2 className="text-[14px] font-semibold text-[#2D3E48]">快捷入口</h2><p className="mt-1 text-[9px] text-[#8A99A4]">常用宣传工作，一步直达</p></div></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {QUICK_ENTRIES.map(entry => {
+            const Icon = entry.icon;
+            return (
+              <button key={entry.label} type="button" onClick={() => onNavigate(entry.view)} className="group flex items-center gap-3 rounded-[18px] border border-white/90 bg-white p-4 text-left shadow-[0_8px_26px_rgba(38,57,72,0.05)] transition-transform hover:-translate-y-0.5">
+                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${entry.tone}`}><Icon className="h-[18px] w-[18px]" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-[11px] font-semibold text-[#40515C]">{entry.label}</span><span className="mt-1 block text-[9px] text-[#8796A1]">{entry.description}</span></span>
+                <ChevronRight className="h-4 w-4 text-[#B1BDC5] transition-transform group-hover:translate-x-0.5" />
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
 
-        <section className="workspace-reveal">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h3 className="text-[16px] font-semibold text-[#21313C]">常用 AI 工具</h3>
-              <p className="mt-1 text-[11px] text-[#8695A0]">从工作场景开始，不需要先选择模型</p>
-            </div>
-            <button type="button" onClick={() => onNavigate('studio')} className="flex items-center gap-1 text-[11px] font-medium text-[#5267E8]">查看全部 <ChevronRight className="h-3.5 w-3.5" /></button>
+function ManagerHome({
+  tasks,
+  onNavigate,
+  onTaskSaved,
+}: {
+  tasks: ContentTaskItem[];
+  onNavigate: (view: ViewType) => void;
+  onTaskSaved: (task: ContentTaskItem) => void;
+}) {
+  const { user } = useAuth();
+  const reviewCount = tasks.filter(task => task.status === 'review').length;
+  const maxTopics = Math.max(...DEPARTMENT_TOPICS.map(item => item.value));
+  const metrics = [
+    { label: '进行中活动', value: '6', detail: '2 项本周到期', icon: FolderKanban, tone: 'bg-[#EEF0FF] text-[#5267E8]' },
+    { label: '待审核内容', value: String(reviewCount || 8), detail: '较昨日 +2', icon: FilePenLine, tone: 'bg-[#FFF4E8] text-[#B66B20]' },
+    { label: '部门选题', value: '101', detail: '33 个部门已报送', icon: Lightbulb, tone: 'bg-[#EBF7FF] text-[#347FAF]' },
+    { label: '本月已发布', value: '24', detail: '覆盖 5 个渠道', icon: Megaphone, tone: 'bg-[#E9F8F5] text-[#218B70]' },
+  ];
+
+  return (
+    <div className="mx-auto max-w-[1440px] space-y-6">
+      <header className="workspace-reveal flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] font-semibold tracking-[0.16em] text-[#5267E8]">企业内容协同平台 V1.0</p>
+            <span className="rounded-full bg-[#E9ECFF] px-2 py-0.5 text-[8px] font-semibold text-[#5267E8]">管理者视角</span>
           </div>
+          <h1 className="mt-2 text-[26px] font-semibold tracking-[-0.04em] text-[#1E2D37]">{getGreeting()}，{user.displayName}</h1>
+          <p className="mt-1.5 text-[11px] text-[#71818D]">宣传工作整体平稳，当前有 {reviewCount || 8} 项内容等待审核。</p>
+        </div>
+        <button type="button" onClick={() => onNavigate('analytics')} className="flex h-10 w-fit items-center gap-2 rounded-xl bg-[#263640] px-4 text-[10px] font-semibold text-white shadow-[0_8px_20px_rgba(38,54,64,0.18)]">
+          <LayoutDashboard className="h-3.5 w-3.5" /> 查看数据全景
+        </button>
+      </header>
 
-          <div className="grid gap-3 lg:grid-cols-3 2xl:grid-cols-5">
-            {TOOLS.map(tool => {
-              const Icon = tool.icon;
-              return (
-                <button key={tool.name} type="button" onClick={() => onNavigate(tool.view)} className="group min-h-[132px] rounded-2xl border border-[#E3E9EE] bg-white p-4 text-left shadow-[0_6px_20px_rgba(35,54,72,0.04)] transition-all hover:-translate-y-0.5 hover:border-[#C9D3F8] hover:shadow-[0_12px_28px_rgba(42,61,102,0.09)]">
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tool.tone} ${tool.iconTone}`}>
-                    <Icon className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                  </span>
-                  <span className="mt-3 block text-[13px] font-semibold text-[#263640] group-hover:text-[#4358CD]">{tool.name}</span>
-                  <span className="mt-1 block truncate text-[10px] text-[#748590]">{tool.description}</span>
-                  <span className="mt-2 block text-[9px] text-[#A1ADB6]">{tool.recent}</span>
-                </button>
-              );
-            })}
+      <section className="workspace-reveal grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map(metric => {
+          const Icon = metric.icon;
+          return (
+            <button key={metric.label} type="button" onClick={() => onNavigate(metric.label === '待审核内容' ? 'tasks' : metric.label === '部门选题' ? 'topics' : metric.label === '本月已发布' ? 'analytics' : 'campaigns')} className="rounded-[20px] border border-white/90 bg-white p-4 text-left shadow-[0_10px_30px_rgba(38,57,72,0.055)]">
+              <div className="flex items-center justify-between"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${metric.tone}`}><Icon className="h-4 w-4" /></span><ChevronRight className="h-4 w-4 text-[#B3BFC7]" /></div>
+              <div className="mt-4 text-[24px] font-semibold tracking-[-0.04em] text-[#263640]">{metric.value}</div>
+              <div className="mt-1 flex items-center justify-between"><span className="text-[10px] font-semibold text-[#52636E]">{metric.label}</span><span className="text-[8px] text-[#8A99A4]">{metric.detail}</span></div>
+            </button>
+          );
+        })}
+      </section>
+
+      <section className="workspace-reveal grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.65fr)]">
+        <div className="overflow-hidden rounded-[22px] border border-white/90 bg-white shadow-[0_12px_36px_rgba(38,57,72,0.06)]">
+          <div className="flex items-center justify-between border-b border-[#E9EEF2] px-5 py-4">
+            <div><h2 className="text-[14px] font-semibold text-[#2D3E48]">活动总览</h2><p className="mt-1 text-[9px] text-[#8A99A4]">负责人、进度与最近更新时间</p></div>
+            <button type="button" onClick={() => onNavigate('campaigns')} className="text-[10px] font-semibold text-[#5267E8]">管理全部活动</button>
           </div>
-        </section>
-
-        <section className="workspace-reveal grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-          <div className="space-y-5">
-            <div className="surface-card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-[#EDF1F4] px-4 py-4 sm:px-5">
-                <div>
-                  <h3 className="text-[15px] font-semibold text-[#263640]">最近 AI 运行</h3>
-                  <p className="mt-1 text-[10px] text-[#8A99A4]">来自服务端 AgentRun，不再使用演示任务</p>
-                </div>
-                <button type="button" onClick={() => onNavigate('studio')} className="text-[11px] font-medium text-[#5267E8]">运行记录</button>
-              </div>
-              <div className="divide-y divide-[#EFF3F5] px-2 sm:px-3">
-                {runsLoading ? (
-                  <div className="flex items-center justify-center gap-2 py-8 text-[11px] text-[#84939E]">
-                    <LoaderCircle className="h-4 w-4 animate-spin text-[#5267E8]" /> 正在加载真实运行记录
-                  </div>
-                ) : null}
-                {!runsLoading && tasks.length === 0 ? (
-                  <button type="button" onClick={() => inputRef.current?.focus()} className="block w-full py-8 text-center text-[11px] text-[#84939E]">
-                    暂无运行记录，在上方描述任务即可启动 Agent
-                  </button>
-                ) : null}
-                {tasks.map(task => {
-                  const status = RUN_STATUS[task.status] ?? { label: task.status, tone: 'bg-[#F1F4F7] text-[#748590]' };
-                  const completed = task.status === 'completed';
-                  return (
-                    <button key={task.id} type="button" onClick={() => onNavigate('studio')} className="flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left transition-colors hover:bg-[#F7F8FC] sm:px-3">
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${completed ? 'bg-[#EAF7F1] text-[#25A76F]' : task.status === 'failed' ? 'bg-[#FFF0F0] text-[#C94F56]' : 'bg-[#EEF1FF] text-[#5267E8]'}`}>
-                        {completed ? <CheckCircle2 className="h-[17px] w-[17px]" strokeWidth={1.9} /> : <LoaderCircle className={`h-[17px] w-[17px] ${task.status === 'running' ? 'animate-spin' : ''}`} strokeWidth={1.8} />}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12px] font-semibold text-[#31414B]">{task.title}</span>
-                        <span className="mt-1 block truncate text-[10px] text-[#8A99A4]">{task.project}</span>
-                      </span>
-                      <span className={`hidden shrink-0 rounded-lg px-2 py-1 text-[9px] font-medium sm:inline ${status.tone}`}>{status.label}</span>
-                      <span className="shrink-0 text-[10px] text-[#8B9AA5]">{task.due}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="surface-card p-4 sm:p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-[15px] font-semibold text-[#263640]">活动进度</h3>
-                  <p className="mt-1 text-[10px] text-[#8A99A4]">1 个活动将在本周到期</p>
-                </div>
-                <button type="button" onClick={() => onNavigate('campaigns')} className="text-[11px] font-medium text-[#5267E8]">活动宣传</button>
-              </div>
-              <div className="space-y-4">
-                {PROJECTS.map(project => (
-                  <button key={project.name} type="button" onClick={() => onNavigate('campaigns')} className="block w-full text-left">
-                    <span className="flex items-center gap-3">
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-3">
-                          <span className="truncate text-[11px] font-semibold text-[#3A4A54]">{project.name}</span>
-                          <span className="shrink-0 text-[10px] font-semibold text-[#60707D]">{project.progress}%</span>
-                        </span>
-                        <span className="mt-1 flex items-center justify-between text-[9px] text-[#93A1AB]"><span>{project.stage}</span><span>{project.due}</span></span>
-                        <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-[#EDF2F5]"><span className="block h-full rounded-full" style={{ width: `${project.progress}%`, backgroundColor: project.color }} /></span>
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="hidden grid-cols-[minmax(180px,1.5fr)_90px_110px_110px_120px] gap-4 bg-[#F9FBFC] px-5 py-2.5 text-[8px] font-semibold tracking-[0.08em] text-[#8A99A4] md:grid">
+            <span>活动</span><span>负责人</span><span>当前状态</span><span>更新时间</span><span>完成度</span>
           </div>
+          <div className="divide-y divide-[#EDF1F4]">
+            {MANAGER_CAMPAIGNS.map(campaign => (
+              <button key={campaign.name} type="button" onClick={() => onNavigate('campaigns')} className="grid w-full gap-3 px-5 py-4 text-left transition-colors hover:bg-[#FAFBFE] md:grid-cols-[minmax(180px,1.5fr)_90px_110px_110px_120px] md:items-center md:gap-4">
+                <span className="min-w-0"><span className="block truncate text-[11px] font-semibold text-[#40515C]">{campaign.name}</span><span className="mt-1 block text-[8px] text-[#9AA8B3] md:hidden">{campaign.owner} · {campaign.status}</span></span>
+                <span className="hidden items-center gap-1.5 text-[9px] text-[#60717C] md:flex"><UsersRound className="h-3 w-3" />{campaign.owner}</span>
+                <span className="hidden w-fit rounded-lg bg-[#EEF0FF] px-2 py-1 text-[8px] font-semibold text-[#5267E8] md:block">{campaign.status}</span>
+                <span className="hidden text-[8px] text-[#82919C] md:block">{campaign.updated}</span>
+                <span className="flex items-center gap-2"><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EDF1F4]"><span className="block h-full rounded-full bg-[#5267E8]" style={{ width: `${campaign.progress}%` }} /></span><span className="text-[8px] font-semibold text-[#687985]">{campaign.progress}%</span></span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-          <aside className="space-y-5">
-            <div className="surface-card p-4 sm:p-5">
-              <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#263640]"><CalendarDays className="h-[17px] w-[17px] text-[#5267E8]" strokeWidth={1.8} /> 今日日程</h3>
-                <button type="button" onClick={() => onNavigate('requests')} className="text-[10px] font-medium text-[#5267E8]">查看日历</button>
-              </div>
-              <div className="mt-4 space-y-1">
-                {SCHEDULES.map(schedule => (
-                  <button key={`${schedule.time}-${schedule.title}`} type="button" onClick={() => onNavigate('requests')} className="flex w-full items-start gap-3 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-[#F6F8FC]">
-                    <span className="w-10 shrink-0 text-[10px] font-semibold text-[#5267E8]">{schedule.time}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[11px] font-semibold text-[#3B4A54]">{schedule.title}</span>
-                      <span className="mt-1 block truncate text-[9px] text-[#93A1AB]">{schedule.detail}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="rounded-[22px] border border-white/90 bg-white p-5 shadow-[0_12px_36px_rgba(38,57,72,0.06)]">
+          <div className="flex items-center justify-between"><div><h2 className="text-[14px] font-semibold text-[#2D3E48]">部门选题统计</h2><p className="mt-1 text-[9px] text-[#8A99A4]">本月报送数量 TOP 5</p></div><Search className="h-4 w-4 text-[#9AA8B3]" /></div>
+          <div className="mt-5 space-y-4">
+            {DEPARTMENT_TOPICS.map((department, index) => (
+              <button key={department.name} type="button" onClick={() => onNavigate('topics')} className="block w-full text-left">
+                <div className="flex items-center justify-between text-[9px]"><span className="font-medium text-[#52636E]">{index + 1}. {department.name}</span><span className="font-semibold text-[#5267E8]">{department.value}</span></div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#EEF2F5]"><div className="h-full rounded-full bg-[linear-gradient(90deg,#5267E8,#4FC7E8)]" style={{ width: `${department.value / maxTopics * 100}%` }} /></div>
+              </button>
+            ))}
+          </div>
+          <button type="button" onClick={() => onNavigate('topics')} className="mt-5 flex h-9 w-full items-center justify-center gap-1 rounded-xl bg-[#F3F5FA] text-[9px] font-semibold text-[#60717C]">查看 33 个部门 <ChevronRight className="h-3 w-3" /></button>
+        </div>
+      </section>
 
-            <div className="surface-card p-4 sm:p-5">
-              <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#263640]"><MessageSquareText className="h-[17px] w-[17px] text-[#7357FF]" strokeWidth={1.8} /> 待处理消息</h3>
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F0EDFF] px-1.5 text-[9px] font-semibold text-[#6D53E6]">2</span>
-              </div>
-              <div className="mt-3 space-y-2">
-                <button type="button" onClick={() => onNavigate('requests')} className="w-full rounded-xl bg-[#F7F8FF] p-3 text-left">
-                  <span className="block text-[11px] font-semibold text-[#3A4A54]">会议纪要待确认</span>
-                  <span className="mt-1 block text-[9px] leading-4 text-[#7F8E99]">7 月内容例会已生成 4 个行动项</span>
-                  <span className="mt-2 text-[9px] font-semibold text-[#5267E8]">立即确认</span>
-                </button>
-                <button type="button" onClick={() => onNavigate('tasks')} className="w-full rounded-xl bg-[#F7FAFB] p-3 text-left">
-                  <span className="block text-[11px] font-semibold text-[#3A4A54]">AI 结果已完成</span>
-                  <span className="mt-1 block text-[9px] leading-4 text-[#7F8E99]">员工故事初稿可以继续编辑</span>
-                  <span className="mt-2 text-[9px] font-semibold text-[#5267E8]">查看结果</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="surface-card p-4 sm:p-5">
-              <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[#263640]"><BookOpen className="h-[17px] w-[17px] text-[#3FA3C2]" strokeWidth={1.8} /> 最近文件</h3>
-                <button type="button" onClick={() => onNavigate('knowledge')} className="text-[10px] font-medium text-[#5267E8]">全部文件</button>
-              </div>
-              <div className="mt-3 space-y-1">
-                {RECENT_FILES.map(file => (
-                  <button key={file.name} type="button" onClick={() => onNavigate('knowledge')} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-[#F6F8FC]">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EEF2F6] text-[8px] font-bold text-[#667986]">{file.type}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[10px] font-semibold text-[#3B4A54]">{file.name}</span>
-                      <span className="mt-1 block truncate text-[9px] text-[#93A1AB]">{file.detail}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </aside>
-        </section>
-
-        <footer className="flex flex-col gap-2 border-t border-[#DDE5EA] py-5 text-[10px] text-[#91A0AB] lg:flex-row lg:items-center lg:justify-between">
-          <span className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-[#5267E8]" /> ECCP 会保留引用来源和人工确认步骤</span>
-          <span className="flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" /> 工作状态已自动保存</span>
-        </footer>
+      <div>
+        <div className="mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4 text-[#5267E8]" /><h2 className="text-[13px] font-semibold text-[#40515C]">发起一项宣传工作</h2><span className="text-[9px] text-[#8A99A4]">计划确认后再执行</span></div>
+        <PlannerPanel compact onNavigate={onNavigate} onTaskSaved={onTaskSaved} />
       </div>
+    </div>
+  );
+}
+
+export function HomeComposer({ onNavigate }: HomeComposerProps) {
+  const { workspaceRole } = useAuth();
+  const [tasks, setTasks] = useState<ContentTaskItem[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    workflowApi<ListResponse<ContentTaskItem>>('content-tasks?limit=20')
+      .then(payload => {
+        if (active) setTasks(payload.items);
+      })
+      .catch(error => showToast(error instanceof Error ? error.message : '无法加载任务', 'error'))
+      .finally(() => {
+        if (active) setTasksLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const addTask = (task: ContentTaskItem) => {
+    setTasks(current => [task, ...current.filter(item => item.id !== task.id)]);
+  };
+
+  return (
+    <div className="min-h-full overflow-x-hidden bg-[radial-gradient(circle_at_82%_-10%,rgba(79,199,232,0.11),transparent_30rem),linear-gradient(180deg,#F5F8FA_0%,#F0F5F7_100%)] px-4 py-6 sm:px-6 lg:px-8 lg:py-7">
+      {workspaceRole === 'manager' ? (
+        <ManagerHome tasks={tasks} onNavigate={onNavigate} onTaskSaved={addTask} />
+      ) : (
+        <MemberHome tasks={tasks} tasksLoading={tasksLoading} onNavigate={onNavigate} onTaskSaved={addTask} />
+      )}
     </div>
   );
 }

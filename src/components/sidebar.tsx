@@ -114,7 +114,7 @@ export function Sidebar({ currentView, onViewChange, collapsed, onToggleCollapse
             {!collapsed ? (
               <span className="min-w-0 text-left">
                 <span className="block text-[15px] font-semibold tracking-[-0.02em] text-[#17232D]">ECCP</span>
-                <span className="block truncate text-[10px] font-medium tracking-[0.04em] text-[#94A2AE]">AI WORKSPACE</span>
+                <span className="block truncate text-[9px] font-medium tracking-[0.02em] text-[#94A2AE]">企业内容协同平台 V1.0</span>
               </span>
             ) : null}
           </button>

@@ -12,9 +12,14 @@ type AuthState = 'checking' | 'authenticated' | 'unavailable';
 
 interface AuthContextValue {
   user: AuthenticatedUser;
+  workspaceRole: WorkspaceRole;
+  setWorkspaceRole: (role: WorkspaceRole) => void;
 }
 
+export type WorkspaceRole = 'member' | 'manager';
+
 const AuthContext = createContext<AuthContextValue | null>(null);
+const ROLE_STORAGE_KEY = 'eccp-workspace-role';
 
 const djangoPublicUrl = (process.env.NEXT_PUBLIC_DJANGO_URL || 'http://localhost:8000').replace(/\/$/, '');
 
@@ -37,6 +42,7 @@ export function useAuth() {
 export function AuthGuard({ children }: AuthGuardProps) {
   const [state, setState] = useState<AuthState>('checking');
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const [workspaceRole, setWorkspaceRoleState] = useState<WorkspaceRole>('member');
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -57,6 +63,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
             redirectToPasswordChange();
             return;
           }
+          const cachedRole = window.localStorage.getItem(ROLE_STORAGE_KEY);
+          const defaultRole = payload.user.isSuperuser || payload.user.isStaff || /科长|经理|部长/.test(payload.user.jobTitle)
+            ? 'manager'
+            : 'member';
+          setWorkspaceRoleState(cachedRole === 'manager' || cachedRole === 'member' ? cachedRole : defaultRole);
           setUser(payload.user);
           setState('authenticated');
           return;
@@ -75,8 +86,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return () => controller.abort();
   }, [attempt]);
 
+  const setWorkspaceRole = (role: WorkspaceRole) => {
+    setWorkspaceRoleState(role);
+    window.localStorage.setItem(ROLE_STORAGE_KEY, role);
+  };
+
   if (state === 'authenticated' && user) {
-    return <AuthContext.Provider value={{ user }}>{children}</AuthContext.Provider>;
+    return <AuthContext.Provider value={{ user, workspaceRole, setWorkspaceRole }}>{children}</AuthContext.Provider>;
   }
 
   return (
